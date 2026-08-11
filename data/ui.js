@@ -6,12 +6,33 @@
     let termHistory = [];
     let histIdx = -1;
 
+    // --- helpers ---
+    let sendQueue = [];
+    let reconnectAttempts = 0;
+    let reconnectTimer = null;
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    function sanitizeShell(str) {
+      const bad = [';','|','&','$','\\','`','\'','"','\n','\r'];
+      return String(str).split('').filter(c => !bad.includes(c)).join('');
+    }
+
     function connect(password) {
+      if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+      if (ws) { try { ws.close(); } catch (e) {} }
       adminToken = password;
       document.getElementById('login-msg').textContent = 'Connecting...';
       ws = new WebSocket('ws://192.168.4.1/ws');
       ws.onopen = () => {
+        reconnectAttempts = 0;
         ws.send(JSON.stringify({type: 'auth', token: password}));
+        while (sendQueue.length) {
+          const c = sendQueue.shift();
+          ws.send(JSON.stringify({type: 'cmd', cmd: c}));
+        }
       };
       ws.onmessage = (e) => {
         let msg;
@@ -21,6 +42,14 @@
       ws.onclose = () => {
         document.getElementById('login-overlay').style.display = 'flex';
         document.getElementById('login-msg').textContent = 'Connection lost. Reconnect.';
+        if (!reconnectTimer) {
+          const delay = Math.min(5000, 500 * Math.pow(2, reconnectAttempts));
+          reconnectAttempts++;
+          reconnectTimer = setTimeout(() => {
+            reconnectTimer = null;
+            connect(adminToken);
+          }, delay);
+        }
       };
       ws.onerror = () => {
         document.getElementById('login-msg').textContent = 'WebSocket error';
@@ -57,6 +86,8 @@
     function sendCmd(cmd) {
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({type: 'cmd', cmd: cmd}));
+      } else {
+        sendQueue.push(cmd);
       }
     }
 
@@ -446,10 +477,13 @@
 
       div.querySelector('#atk-start').addEventListener('click', () => {
         let cmd = `attack -t ${type.value} -ch ${ch.value}`;
-        if (ssid.value.trim()) cmd += ` -s ${ssid.value}`;
-        if (bssid.value.trim()) cmd += ` -b ${bssid.value}`;
+        const s = sanitizeShell(ssid.value.trim());
+        if (s) cmd += ` -s ${s}`;
+        const b = sanitizeShell(bssid.value.trim());
+        if (b) cmd += ` -b ${b}`;
         if (idx.value !== '') cmd += ` -a ${idx.value}`;
-        if (pass.value.trim()) cmd += ` -p ${pass.value}`;
+        const p = sanitizeShell(pass.value.trim());
+        if (p) cmd += ` -p ${p}`;
         if (count.value) cmd += ` -c ${count.value}`;
         if (cycle.checked) cmd += ' -l';
         if (hidden.checked) cmd += ' -h';
@@ -760,7 +794,7 @@
       div.querySelector('#net-scan').addEventListener('click', () => sendCmd('scanall'));
       div.querySelector('#net-refresh').addEventListener('click', () => {
         const d = window.lastSysInfo || {};
-        div.querySelector('#net-info').innerHTML = `<b>AP:</b> ${d.ap_ssid || 'Icy-OS'}<br><b>IP:</b> ${d.ap_ip || '--'}<br><b>MAC:</b> ${d.ap_mac || '--'}<br><b>Stations:</b> ${d.stations ?? 0}`;
+        div.querySelector('#net-info').innerHTML = `<b>AP:</b> ${escapeHtml(d.ap_ssid || 'Icy-OS')}<br><b>IP:</b> ${escapeHtml(d.ap_ip || '--')}<br><b>MAC:</b> ${escapeHtml(d.ap_mac || '--')}<br><b>Stations:</b> ${d.stations ?? 0}`;
       });
     }
 
@@ -840,7 +874,11 @@
       tbody.innerHTML = '';
       list.forEach(n => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${n.ssid || '(hidden)'}</td><td>${n.rssi} dBm</td><td>${n.channel}</td><td>${n.auth}</td>`;
+        const ssidTd = document.createElement('td'); ssidTd.textContent = n.ssid || '(hidden)';
+        const rssiTd = document.createElement('td'); rssiTd.textContent = n.rssi + ' dBm';
+        const chTd = document.createElement('td'); chTd.textContent = n.channel;
+        const authTd = document.createElement('td'); authTd.textContent = n.auth;
+        tr.appendChild(ssidTd); tr.appendChild(rssiTd); tr.appendChild(chTd); tr.appendChild(authTd);
         tbody.appendChild(tr);
       });
     }
@@ -966,26 +1004,75 @@
       tbody.innerHTML = '';
       const parts = currentPath.split('/').filter(Boolean);
       let cp = '';
-      let bc = '<span data-path="/">/</span>';
-      parts.forEach(s => { cp += '/' + s; bc += ' / <span data-path="' + cp + '">' + s + '</span>'; });
-      document.getElementById('files-bc').innerHTML = bc;
-      document.querySelectorAll('#files-bc span').forEach(sp => {
-        if (sp.dataset.path) sp.addEventListener('click', () => sendCmd('ls ' + sp.dataset.path));
-      });
+      const bc = document.getElementById('files-bc');
+      if (bc) {
+        bc.innerHTML = '';
+        const root = document.createElement('span');
+        root.dataset.path = '/';
+        root.textContent = '/';
+        root.addEventListener('click', () => sendCmd('ls /'));
+        bc.appendChild(root);
+        parts.forEach(s => {
+          cp += '/' + s;
+          const slash = document.createTextNode(' / ');
+          bc.appendChild(slash);
+          const sp = document.createElement('span');
+          sp.dataset.path = cp;
+          sp.textContent = s;
+          sp.addEventListener('click', () => sendCmd('ls ' + cp));
+          bc.appendChild(sp);
+        });
+      }
       list.forEach(f => {
         const tr = document.createElement('tr');
+        const nameTd = document.createElement('td');
+        const typeTd = document.createElement('td');
+        const sizeTd = document.createElement('td');
+        const actTd = document.createElement('td');
+        nameTd.textContent = f.name;
+        typeTd.textContent = f.dir ? 'dir' : 'file';
+        sizeTd.textContent = f.dir ? '-' : formatBytes(f.size);
+        tr.appendChild(nameTd);
+        tr.appendChild(typeTd);
+        tr.appendChild(sizeTd);
+        tr.appendChild(actTd);
         const full = (currentPath === '/' ? '' : currentPath) + '/' + f.name;
-        const ext = f.name.split('.').pop().toLowerCase();
-        const img = ['jpg','jpeg','png','svg','gif','bmp','ico','webp'].includes(ext);
-        let actions = '';
         if (!f.dir) {
-          actions += `<button class="std" style="padding:2px 6px;font-size:11px" onclick="window.viewerPath='${full}'; openWindow('viewer')">Open</button> `;
-          if (img) actions += `<button class="std" style="padding:2px 6px;font-size:11px;background:#2b3039;color:#e0e6ed" onclick="sendCmd('setwall ${full}')">Set BG</button> `;
-          actions += `<a href="/files?token=${encodeURIComponent(adminToken)}&path=${encodeURIComponent(full)}" download style="text-decoration:none"><button class="std" style="padding:2px 6px;font-size:11px">DL</button></a> `;
-          actions += `<button class="std" style="padding:2px 6px;font-size:11px" onclick="sendCmd('rm ${full}')">Del</button> `;
-          actions += `<button class="std" style="padding:2px 6px;font-size:11px" onclick="const n=prompt('Rename to','${f.name}'); if(n) sendCmd('mv ${full} ' + (currentPath==='/' ? '' : currentPath) + '/' + n)">Ren</button>`;
+          const ext = f.name.split('.').pop().toLowerCase();
+          const isImg = ['jpg','jpeg','png','svg','gif','bmp','ico','webp'].includes(ext);
+          const openBtn = document.createElement('button');
+          openBtn.className = 'std'; openBtn.style.padding = '2px 6px'; openBtn.style.fontSize = '11px'; openBtn.textContent = 'Open';
+          openBtn.addEventListener('click', () => { window.viewerPath = full; openWindow('viewer'); });
+          actTd.appendChild(openBtn); actTd.appendChild(document.createTextNode(' '));
+          if (isImg) {
+            const bgBtn = document.createElement('button');
+            bgBtn.className = 'std'; bgBtn.style.padding = '2px 6px'; bgBtn.style.fontSize = '11px'; bgBtn.style.background = '#2b3039'; bgBtn.style.color = '#e0e6ed'; bgBtn.textContent = 'Set BG';
+            bgBtn.addEventListener('click', () => sendCmd('setwall ' + full));
+            actTd.appendChild(bgBtn); actTd.appendChild(document.createTextNode(' '));
+          }
+          const dl = document.createElement('a');
+          dl.href = '/files?token=' + encodeURIComponent(adminToken) + '&path=' + encodeURIComponent(full);
+          dl.download = ''; dl.style.textDecoration = 'none';
+          const dlBtn = document.createElement('button'); dlBtn.className = 'std'; dlBtn.style.padding = '2px 6px'; dlBtn.style.fontSize = '11px'; dlBtn.textContent = 'DL';
+          dl.appendChild(dlBtn);
+          actTd.appendChild(dl); actTd.appendChild(document.createTextNode(' '));
+          const delBtn = document.createElement('button');
+          delBtn.className = 'std'; delBtn.style.padding = '2px 6px'; delBtn.style.fontSize = '11px'; delBtn.textContent = 'Del';
+          delBtn.addEventListener('click', () => sendCmd('rm ' + full));
+          actTd.appendChild(delBtn); actTd.appendChild(document.createTextNode(' '));
+          const renBtn = document.createElement('button');
+          renBtn.className = 'std'; renBtn.style.padding = '2px 6px'; renBtn.style.fontSize = '11px'; renBtn.textContent = 'Ren';
+          renBtn.addEventListener('click', () => {
+            const n = prompt('Rename to', f.name);
+            if (n) {
+              const safe = sanitizeShell(n);
+              if (!safe) return;
+              const dest = (currentPath === '/' ? '' : currentPath) + '/' + safe;
+              sendCmd('mv ' + full + ' ' + dest);
+            }
+          });
+          actTd.appendChild(renBtn);
         }
-        tr.innerHTML = `<td>${f.name}</td><td>${f.dir ? 'dir' : 'file'}</td><td>${f.dir ? '-' : formatBytes(f.size)}</td><td>${actions}</td>`;
         if (f.dir) {
           tr.style.cursor = 'pointer';
           tr.addEventListener('dblclick', () => {
@@ -1027,11 +1114,17 @@
       });
       div.querySelector('#files-mkdir').addEventListener('click', () => {
         const n = prompt('Folder name?');
-        if (n) sendCmd('mkdir ' + (currentPath === '/' ? '' : currentPath) + '/' + n);
+        if (n) {
+          const safe = sanitizeShell(n);
+          if (safe) sendCmd('mkdir ' + (currentPath === '/' ? '' : currentPath) + '/' + safe);
+        }
       });
       div.querySelector('#files-touch').addEventListener('click', () => {
         const n = prompt('File name?');
-        if (n) sendCmd('touch ' + (currentPath === '/' ? '' : currentPath) + '/' + n);
+        if (n) {
+          const safe = sanitizeShell(n);
+          if (safe) sendCmd('touch ' + (currentPath === '/' ? '' : currentPath) + '/' + safe);
+        }
       });
       div.querySelector('#files-back').addEventListener('click', () => {
         if (filesHistory && filesHistory.length) {
@@ -1063,12 +1156,19 @@
         const tr = document.createElement('tr');
         const pct = Math.min(100, Math.max(0, (n.rssi + 90) * 100 / 60));
         const color = n.rssi > -60 ? '#51cf66' : n.rssi > -75 ? '#ffd43b' : '#ff6b6b';
-        tr.innerHTML = `
-          <td>${n.ssid || '<hidden>'}</td>
-          <td><div class="bar-outer"><div class="bar-inner" style="width:${pct}%;background:${color}"></div></div> ${n.rssi}</td>
-          <td>${n.channel}</td>
-          <td>${n.auth}</td>
-        `;
+        const ssidTd = document.createElement('td');
+        ssidTd.textContent = n.ssid || '<hidden>';
+        const rssiTd = document.createElement('td');
+        rssiTd.innerHTML = `<div class="bar-outer"><div class="bar-inner" style="width:${pct}%;background:${color}"></div></div>`;
+        rssiTd.appendChild(document.createTextNode(' ' + n.rssi));
+        const chTd = document.createElement('td');
+        chTd.textContent = n.channel;
+        const authTd = document.createElement('td');
+        authTd.textContent = n.auth;
+        tr.appendChild(ssidTd);
+        tr.appendChild(rssiTd);
+        tr.appendChild(chTd);
+        tr.appendChild(authTd);
         tbody.appendChild(tr);
       });
     }

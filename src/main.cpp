@@ -588,9 +588,9 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
     doc["method"] = cmd;
     JsonArray arr = doc.createNestedArray("open");
     int found = 0;
+    WiFiClient probe;
     for (int h = 2; h <= 254 && found < 50; h++) {
       IPAddress ip(192, 168, 4, h);
-      WiFiClient probe;
       if (probe.connect(ip, 80, 300)) {
         arr.add("192.168.4." + String(h));
         found++;
