@@ -22,15 +22,20 @@ import time
 import serial
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DEFAULT_FILES = [
-    "index.html",
-    "style.css",
-    "ui.js",
-    "service-worker.js",
-    "manifest.json",
-    "favicon.svg",
-    "wallpaper.jpg",
-]
+
+def collect_data_files(data_dir):
+    files = []
+    for root, dirs, names in os.walk(data_dir):
+        # skip hidden and dot directories
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        for n in names:
+            if n.startswith('.'): continue
+            local = os.path.join(root, n)
+            rel = os.path.relpath(local, data_dir)
+            files.append((local, rel.replace(os.sep, '/')))
+    # root files first, then deeper files, for a stable order
+    files.sort(key=lambda x: x[1].count('/'))
+    return files
 
 
 def find_port():
@@ -106,7 +111,6 @@ def main():
     parser.add_argument("--port", default=find_port(), help="USB/serial port of the ESP32")
     parser.add_argument("--no-flash", action="store_true", help="Skip firmware flashing")
     parser.add_argument("--data", default=os.path.join(PROJECT_DIR, "data"), help="OS asset folder")
-    parser.add_argument("--files", default=",".join(DEFAULT_FILES), help="Comma-separated file list")
     args = parser.parse_args()
 
     if not args.port:
@@ -121,7 +125,10 @@ def main():
             sys.exit(1)
         time.sleep(1)
 
-    files = [f.strip() for f in args.files.split(",") if f.strip()]
+    files = collect_data_files(args.data)
+    if not files:
+        print("No files found in data/.")
+        sys.exit(1)
 
     print(f"[2/3] Opening {args.port}...")
     with serial.Serial(args.port, 115200, timeout=0.5) as ser:
@@ -135,17 +142,13 @@ def main():
         time.sleep(0.5)
 
         failed = []
-        for name in files:
-            local = os.path.join(args.data, name)
-            if not os.path.exists(local):
-                print(f"[{name}] File not found, skipping: {local}")
-                continue
-            ok, msg = upload_one(ser, local, name)
+        for local, remote in files:
+            ok, msg = upload_one(ser, local, remote)
             if not ok:
-                print(f"[{name}] FAILED: {msg}")
-                failed.append(name)
+                print(f"[{remote}] FAILED: {msg}")
+                failed.append(remote)
             else:
-                print(f"[{name}] OK")
+                print(f"[{remote}] OK")
 
         if failed:
             print(f"Upload errors: {failed}")

@@ -97,6 +97,14 @@
       font-size: 14px;
     }
     #start-menu .menu-item:hover { background: #2b3039; }
+    .menu-sep {
+      padding: 6px 16px 4px;
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      color: #36d13c; letter-spacing: 1px;
+      border-top: 1px solid #1b1f25;
+    }
+    .menu-sep:first-child { border-top: none; }
+    #modules-menu .menu-item { padding-left: 20px; }
     #menu-search {
       width: calc(100% - 24px); margin: 8px 12px; padding: 8px 10px;
       background: #0f1115; border: 1px solid #2b3039; color: #e0e6ed;

@@ -516,21 +516,30 @@ void WiFiAttack::txActionQuiet(const uint8_t* bssid, uint8_t duration, uint8_t p
 String WiFiAttack::runCommand(const String& raw) {
   String s = raw;
   s.trim();
-  s.toLowerCase();
-  if (!s.startsWith("attack ")) {
+  String lower = s;
+  lower.toLowerCase();
+  if (!lower.startsWith("attack ")) {
     return "Not an attack command";
   }
 
-  // Simple tokenizer on spaces
+  // Simple tokenizer on spaces, respecting single/double quotes
   std::vector<String> tok;
   int p = 0;
   while (p < s.length()) {
     while (p < s.length() && s[p] == ' ') p++;
     if (p >= s.length()) break;
-    int e = s.indexOf(' ', p);
-    if (e == -1) e = s.length();
-    tok.push_back(s.substring(p, e));
-    p = e + 1;
+    char q = 0;
+    if (s[p] == '"' || s[p] == '\'') { q = s[p]; p++; }
+    int e = p;
+    while (e < s.length()) {
+      if (q) { if (s[e] == q) break; }
+      else { if (s[e] == ' ') break; }
+      e++;
+    }
+    String val = s.substring(p, e);
+    if (q && e < s.length() && s[e] == q) e++;
+    tok.push_back(val);
+    p = e;
   }
 
   if (tok.size() < 3) {

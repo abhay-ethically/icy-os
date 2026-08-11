@@ -1,4 +1,4 @@
-const CACHE = 'icy-os-v5';
+const CACHE = 'icy-os-v6';
 const urlsToCache = ['/', '/index.html', '/style.css', '/ui.js', '/wallpaper.jpg', '/favicon.svg', '/manifest.json'];
 
 self.addEventListener('install', e => {
@@ -19,7 +19,8 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (url.pathname === '/ws' || url.pathname === '/setup' ||
       url.pathname.startsWith('/files') || url.pathname.startsWith('/fs/') ||
-      url.pathname.startsWith('/wallpaper') || url.pathname.startsWith('/favicon.ico')) return;
+      url.pathname.startsWith('/wallpaper') || url.pathname.startsWith('/favicon.ico') ||
+      url.pathname.startsWith('/modules/')) return;
 
   e.respondWith(
     fetch(e.request).then(res => {

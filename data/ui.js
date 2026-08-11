@@ -1,6 +1,7 @@
     // --- WebSocket ---
     let ws = null;
     let adminToken = '';
+    window.icyModules = {};
     let currentPath = '/';
     let filesHistory = [];
     let termHistory = [];
@@ -17,6 +18,10 @@
 
     function sanitizeShell(str) {
       const bad = [';','|','&','$','\\','`','\'','"','\n','\r'];
+      return String(str).split('').filter(c => !bad.includes(c)).join('');
+    }
+    function sanitizeAttackArg(str) {
+      const bad = [';','|','&','$','\\','`','\n','\r'];
       return String(str).split('').filter(c => !bad.includes(c)).join('');
     }
 
@@ -61,6 +66,7 @@
         case 'auth':
           if (msg.data === true) {
             document.getElementById('login-overlay').style.display = 'none';
+            loadModules();
             // request settings and a file listing
             ws.send(JSON.stringify({type: 'settings', action: 'get'}));
             ws.send(JSON.stringify({type: 'cmd', cmd: 'ls /'}));
@@ -114,11 +120,11 @@
     document.addEventListener('click', (e) => {
       if (!startMenu.contains(e.target) && e.target.id !== 'start-btn') startMenu.style.display = 'none';
     });
-    document.querySelectorAll('.menu-item').forEach(el => {
-      el.addEventListener('click', () => {
-        openWindow(el.dataset.app);
-        startMenu.style.display = 'none';
-      });
+    startMenu.addEventListener('click', (e) => {
+      const el = e.target.closest('.menu-item');
+      if (!el) return;
+      openWindow(el.dataset.app);
+      startMenu.style.display = 'none';
     });
     document.getElementById('menu-search').addEventListener('input', (e) => {
       const q = e.target.value.toLowerCase();
@@ -155,6 +161,39 @@
     };
     const openWins = {};
 
+    async function loadModules() {
+      try {
+        const r = await fetch('/modules/modules.json?token=' + encodeURIComponent(adminToken));
+        if (!r.ok) return;
+        const list = await r.json();
+        if (!Array.isArray(list)) return;
+        const container = document.getElementById('modules-menu');
+        if (!container) return;
+        for (const m of list) {
+          if (!m.id || !m.src) continue;
+          // inject module script
+          await new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = '/modules/' + m.src;
+            s.onload = resolve;
+            s.onerror = reject;
+            document.body.appendChild(s);
+          });
+          const mod = window.icyModules[m.id];
+          if (!mod) continue;
+          // register in apps
+          apps[m.id] = { title: mod.name || m.name || m.id, w: m.w || 520, h: m.h || 380, html: mod.html || '', init: mod.init };
+          winPos[m.id] = { x: 90 + Object.keys(winPos).length * 30, y: 70 + Object.keys(winPos).length * 20 };
+          // add menu item
+          const el = document.createElement('div');
+          el.className = 'menu-item';
+          el.dataset.app = m.id;
+          el.textContent = mod.name || m.name || m.id;
+          container.appendChild(el);
+        }
+      } catch (e) { console.error('modules load error', e); }
+    }
+
     function openWindow(app) {
       if (openWins[app]) { focusWindow(app); return; }
       const a = apps[app];
@@ -183,6 +222,7 @@
       openWins[app] = div;
       addTaskIcon(app, a.title);
       initWindowBehavior(div, app);
+      if (typeof a.init === 'function') a.init(div);
       focusWindow(app);
       if (app === 'wifi') ws.send(JSON.stringify({type:'scanner', action:'subscribe'}));
     }
@@ -465,17 +505,18 @@
 
       div.querySelector('#atk-start').addEventListener('click', () => {
         let cmd = `attack -t ${type.value} -ch ${ch.value}`;
-        const s = sanitizeShell(ssid.value.trim());
-        if (s) cmd += ` -s ${s}`;
-        const b = sanitizeShell(bssid.value.trim());
+        const s = sanitizeAttackArg(ssid.value.trim()).replace(/"/g, "'");
+        if (s) cmd += ` -s "${s}"`;
+        const b = sanitizeAttackArg(bssid.value.trim());
         if (b) cmd += ` -b ${b}`;
         if (idx.value !== '') cmd += ` -a ${idx.value}`;
-        const p = sanitizeShell(pass.value.trim());
-        if (p) cmd += ` -p ${p}`;
+        const p = sanitizeAttackArg(pass.value.trim()).replace(/"/g, "'");
+        if (p) cmd += ` -p "${p}"`;
         if (count.value) cmd += ` -c ${count.value}`;
         if (cycle.checked) cmd += ' -l';
         if (hidden.checked) cmd += ' -h';
-        if (hop.checked) cmd += ' -hop';
+        // keep AP stable: channel hopping is disabled in the UI
+        // if (hop.checked) cmd += ' -hop';
         sendCmd(cmd);
       });
 
@@ -693,7 +734,8 @@
           <button class="std" id="net-refresh" style="background:#2b3039;color:#e0e6ed">Refresh</button>
         </div>
         <div id="net-info" style="font-size:13px;margin-bottom:10px"></div>
-        <table id="net-table"><thead><tr><th>SSID</th><th>RSSI</th><th>Ch</th><th>Auth</th></tr></thead><tbody id="net-list"></tbody></table>
+        <table id="net-table"><thead><tr><th>SSID</th><th>RSSI</th><th>Ch</th><th>Auth</th><th>Action</th></tr></thead><tbody id="net-list"></tbody></table>
+        <div id="net-sta" style="font-size:13px;margin-top:10px;color:#9aa3ad">Saved STA: --</div>
       `;
     }
 
@@ -742,6 +784,29 @@
       div.querySelector('#net-refresh').addEventListener('click', () => {
         const d = window.lastSysInfo || {};
         div.querySelector('#net-info').innerHTML = `<b>AP:</b> ${escapeHtml(d.ap_ssid || 'Icy-OS')}<br><b>IP:</b> ${escapeHtml(d.ap_ip || '--')}<br><b>MAC:</b> ${escapeHtml(d.ap_mac || '--')}<br><b>Stations:</b> ${d.stations ?? 0}`;
+        div.querySelector('#net-sta').textContent = `Saved STA: ${escapeHtml(d.sta_status || 'none')} ${d.sta_ip ? d.sta_ip : ''}`;
+      });
+      const tbody = div.querySelector('#net-list');
+      tbody.addEventListener('click', (e) => {
+        const tr = e.target.closest('tr');
+        if (!tr) return;
+        if (e.target.classList.contains('net-connect')) {
+          const ssid = tr.dataset.ssid;
+          if (!ssid) return;
+          const pass = window.prompt('Password for ' + ssid);
+          if (pass === null) return;
+          const safe = sanitizeAttackArg(pass).replace(/"/g, "'");
+          sendCmd(`setsta "${ssid.replace(/"/g, "'")}" "${safe}"`);
+        } else {
+          document.querySelectorAll('#net-list tr').forEach(r => r.classList.remove('selected'));
+          tr.classList.add('selected');
+          window._selectedAp = {
+            ssid: tr.dataset.ssid,
+            bssid: tr.dataset.bssid,
+            channel: tr.dataset.channel,
+            index: tr.dataset.index
+          };
+        }
       });
     }
 
@@ -765,8 +830,12 @@
         const tbody = document.getElementById(id);
         if (!tbody) return;
         tbody.innerHTML = '';
-        list.forEach(n => {
+        list.forEach((n, idx) => {
           const tr = document.createElement('tr');
+          tr.dataset.ssid = n.ssid || '';
+          tr.dataset.bssid = n.bssid || '';
+          tr.dataset.channel = n.channel;
+          tr.dataset.index = idx;
           const pct = Math.min(100, Math.max(0, (n.rssi + 90) * 100 / 60));
           const color = n.rssi > -60 ? '#51cf66' : n.rssi > -75 ? '#ffd43b' : '#ff6b6b';
           const ssidTd = document.createElement('td'); ssidTd.textContent = n.ssid || '<hidden>';
@@ -776,6 +845,13 @@
           const chTd = document.createElement('td'); chTd.textContent = n.channel;
           const authTd = document.createElement('td'); authTd.textContent = n.auth;
           tr.appendChild(ssidTd); tr.appendChild(rssiTd); tr.appendChild(chTd); tr.appendChild(authTd);
+          if (id === 'net-list') {
+            const btnTd = document.createElement('td');
+            const btn = document.createElement('button');
+            btn.className = 'std net-connect'; btn.textContent = 'Connect'; btn.dataset.ssid = n.ssid || '';
+            btnTd.appendChild(btn);
+            tr.appendChild(btnTd);
+          }
           tbody.appendChild(tr);
         });
       });

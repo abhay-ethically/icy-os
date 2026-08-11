@@ -655,7 +655,7 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
   }
   else if (cmd.startsWith("attack ")) {
     updateAttackTargets();
-    String attackCmd = cmd;
+    String attackCmd = orig;
     // Allow -f <file> on SD to load a list of SSIDs for beacon/probe/ssidspam
     int fIdx = attackCmd.indexOf(" -f ");
     if (fIdx >= 0) {
@@ -1028,6 +1028,7 @@ bool copyFile(const String& src, const String& dst) {
 String shellCommand(const String& raw) {
   String s = raw;
   s.trim();
+  String orig = s;
   s.toLowerCase();
 
   // cd
@@ -1169,11 +1170,19 @@ String shellCommand(const String& raw) {
 
   // setsta <ssid> <pass>  — connect to a router for internet
   if (s.startsWith("setsta ")) {
-    String rest = s.substring(7);
-    int sp = rest.indexOf(' ');
-    if (sp <= 0) return "Usage: setsta <ssid> <password>";
-    staSSID = rest.substring(0, sp);
-    staPassword = rest.substring(sp + 1);
+    String rest = orig.substring(7);
+    int p = 0;
+    while (p < rest.length() && rest[p] == ' ') p++;
+    if (p >= rest.length()) return "Usage: setsta <ssid> <password>";
+    char q = 0;
+    if (rest[p] == '"' || rest[p] == '\'') { q = rest[p]; p++; }
+    int e = p;
+    while (e < rest.length() && (q ? rest[e] != q : rest[e] != ' ')) e++;
+    if (e == p) return "Usage: setsta <ssid> <password>";
+    staSSID = rest.substring(p, e);
+    if (q && e < rest.length()) e++;
+    while (e < rest.length() && rest[e] == ' ') e++;
+    staPassword = rest.substring(e);
     saveSettings();
     connectSTA();
     return "Saved STA " + staSSID + ", connecting...";
@@ -1195,6 +1204,16 @@ String shellCommand(const String& raw) {
   if (s == "reconnect") {
     connectSTA();
     return "Reconnecting STA...";
+  }
+
+  // forgetsta  — clear saved STA credentials
+  if (s == "forgetsta") {
+    staSSID = "";
+    staPassword = "";
+    WiFi.disconnect(true);
+    saveSettings();
+    restoreAP();
+    return "STA forgotten; using AP only";
   }
 
   // ps
@@ -1456,8 +1475,12 @@ void connectSTA() {
   if (staSSID.length() == 0) { restoreAP(); staConnectStart = 0; return; }
   if (WiFi.status() == WL_CONNECTED && WiFi.SSID() == staSSID) { restoreAP(); staConnectStart = 0; return; }
   if (WiFi.getMode() != WIFI_AP_STA) WiFi.mode(WIFI_AP_STA);
+  WiFi.setSleep(false);
+  WiFi.disconnect(true);
+  delay(100);
   WiFi.setAutoConnect(false);
   WiFi.setAutoReconnect(false);
+  Serial.println("[ICY] STA connecting to " + staSSID);
   WiFi.begin(staSSID.c_str(), staPassword.c_str());
   staConnectStart = millis();
 }
@@ -1794,6 +1817,8 @@ void handleSerialUpload() {
               Serial.println("FAIL " + path + " SD not ready");
             } else {
               String target = "/" + path;
+              int slash = target.lastIndexOf('/');
+              if (slash > 0) SD.mkdir(target.substring(0, slash));
               File f = SD.open(target, FILE_WRITE);
               if (f) {
                 Serial.println("READY " + path);
