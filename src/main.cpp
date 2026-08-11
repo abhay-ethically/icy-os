@@ -1178,7 +1178,7 @@ String shellCommand(const String& raw) {
   if (s == "neofetch") {
     String out = "   ___  ____  __  __  ___  _   _ \n";
     out += "  | __||__ / |  /  || __|| | | |\n";
-    out += "  | _|  |_ \\ | |\/| || _| | |_| |\n";
+    out += "  | _|  |_ \\ | |/| || _| | |_| |\n";
     out += "  |___||___/ |_|  |_||___| \\___/ \n";
     out += "OS:        Icy OS Web OS\n";
     out += "Host:      ESP32-D0WD-V3\n";
