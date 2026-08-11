@@ -482,6 +482,9 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
       "  stopscan      cancel scan/attack/wardrive\n"
       "  attack -t <type> [opts]  start a Wi-Fi attack\n"
       "  sniff -c <ch> -t <s>      capture 802.11 frames to SD\n"
+      "  setsta <ssid> <pass>  save and connect to router\n"
+      "  wifistatus    show AP/STA status\n"
+      "  reconnect     retry STA connection\n"
       "  wifi scan     scan nearby networks\n"
       "  beep [ms]     buzzer beep (default 200)\n"
       "  ota           show OTA upload URL\n"
@@ -1192,6 +1195,36 @@ String shellCommand(const String& raw) {
     return out;
   }
 
+  // setsta <ssid> <pass>  — connect to a router for internet
+  if (s.startsWith("setsta ")) {
+    String rest = s.substring(7);
+    int sp = rest.indexOf(' ');
+    if (sp <= 0) return "Usage: setsta <ssid> <password>";
+    staSSID = rest.substring(0, sp);
+    staPassword = rest.substring(sp + 1);
+    saveSettings();
+    connectSTA();
+    return "Saved STA " + staSSID + ", connecting...";
+  }
+
+  // wifistatus
+  if (s == "wifistatus") {
+    String out = "AP: " + apSSID + "  " + WiFi.softAPIP().toString() + "  ch" + String(apChannel) + "\n";
+    out += "AP stations: " + String(WiFi.softAPgetStationNum()) + "\n";
+    if (WiFi.status() == WL_CONNECTED) {
+      out += "STA: connected to " + WiFi.SSID() + "  IP " + WiFi.localIP().toString() + "\n";
+    } else {
+      out += "STA: " + String(WiFi.status() == WL_IDLE_STATUS ? "idle" : WiFi.status() == WL_CONNECT_FAILED ? "failed" : "connecting") + "\n";
+    }
+    return out;
+  }
+
+  // reconnect
+  if (s == "reconnect") {
+    connectSTA();
+    return "Reconnecting STA...";
+  }
+
   // ps
   if (s == "ps") {
     return "  PID TTY          TIME CMD\n";
@@ -1829,9 +1862,10 @@ void setup() {
     <div class="actions">
       <button id="up" onclick="uploadAll()" disabled>Upload all files</button>
       <button id="open" onclick="location.href='/'">Open Icy OS</button>
+      <button id="wipe" onclick="wipeCache()" style="background:#ff6b6b">Wipe browser cache</button>
     </div>
 
-    <p class="note">Required: index.html, style.css, ui.js, wallpaper.jpg, service-worker.js, manifest.json, favicon.svg.<br>You can select all 7 at once. If a file fails, the token may be wrong or the SD card is not writable.</p>
+    <p class="note"><b>Still seeing the old UI / games?</b> Click <b>Wipe browser cache</b>, then upload the 7 files.<br>Required: index.html, style.css, ui.js, service-worker.js, manifest.json, favicon.svg, wallpaper.jpg.<br>You can select all 7 at once. If a file fails, the token may be wrong or the SD card is not writable.</p>
   </div>
 
   <script>
@@ -1840,6 +1874,19 @@ void setup() {
     const input = document.getElementById('file');
     const list = document.getElementById('list');
     const upBtn = document.getElementById('up');
+
+    async function wipeCache() {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      alert('Cache wiped. Reload this page and upload the new files.');
+      location.reload();
+    }
 
     drop.addEventListener('click', () => input.click());
     input.addEventListener('change', () => addFiles(input.files));
