@@ -60,6 +60,7 @@ String resolvePath(const String& in);
 String shellCommand(const String& cmd);
 void restoreAP();
 void connectSTA();
+String staStatusString();
 void startSniff(uint8_t ch, uint32_t seconds);
 void stopSniff();
 
@@ -410,7 +411,7 @@ void sendSysInfo(AsyncWebSocketClient* c = nullptr) {
   d["sd_used"]     = (unsigned long)(sdUsedBytes() / 1024);
   d["sd_free"]     = (unsigned long)((sdTotalBytes() - sdUsedBytes()) / 1024);
   d["sta_ip"]      = (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString() : "";
-  d["sta_status"]  = (WiFi.status() == WL_CONNECTED) ? "connected" : "disconnected";
+  d["sta_status"]  = staStatusString();
   d["time"]        = (unsigned long)time(nullptr);
 
   if (c) sendJSON(c, doc);
@@ -509,7 +510,7 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
     String path = currentDir;
     int sp = cmd.indexOf(' ');
     if (sp > 0) {
-      path = cmd.substring(sp + 1);
+      path = orig.substring(sp + 1);
       path.trim();
     }
     path = resolvePath(path);
@@ -527,7 +528,7 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
     sendNetworkList(c);
   }
   else if (cmd.startsWith("select -a ")) {
-    int idx = cmd.substring(10).toInt();
+    int idx = orig.substring(10).toInt();
     if (idx >= 0 && idx < (int)apCache.size()) {
       selectedAPs.insert(idx);
       term["data"] = "Selected " + String(idx);
@@ -549,7 +550,7 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
   else if (cmd.startsWith("beep")) {
     int ms = 200;
     int sp = cmd.indexOf(' ');
-    if (sp > 0) ms = cmd.substring(sp + 1).toInt();
+    if (sp > 0) ms = orig.substring(sp + 1).toInt();
     if (ms <= 0) ms = 200;
     beep(ms);
     term["data"] = "Beep " + String(ms) + "ms";
@@ -613,7 +614,7 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
     sendJSON(c, term);
   }
   else if (cmd.startsWith("portscan ")) {
-    String rest = cmd.substring(9);
+    String rest = orig.substring(9);
     rest.trim();
     int sp1 = rest.indexOf(' ');
     String ipStr = (sp1 > 0) ? rest.substring(0, sp1) : rest;
@@ -700,7 +701,7 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
     sendJSON(c, term);
   }
   else if (cmd.startsWith("sniff ")) {
-    String rest = cmd.substring(6);
+    String rest = orig.substring(6);
     rest.trim();
     int ch = 1;
     unsigned int sec = 5;
@@ -724,7 +725,7 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
     sendJSON(c, term);
   }
   else if (cmd.startsWith("portal ")) {
-    String rest = cmd.substring(7);
+    String rest = orig.substring(7);
     rest.trim();
     if (rest == "start" || rest == "-c start") {
       portalRunning = true;
@@ -803,7 +804,7 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
     }
   }
   else if (cmd.startsWith("md5sum ")) {
-    String path = resolvePath(cmd.substring(7));
+    String path = resolvePath(orig.substring(7));
     if (path.length() == 0 || !sdReady || !SD.exists(path)) {
       term["data"] = "File not found";
     } else {
@@ -828,7 +829,7 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
     sendJSON(c, term);
   }
   else if (cmd.startsWith("hexdump ")) {
-    String path = resolvePath(cmd.substring(8));
+    String path = resolvePath(orig.substring(8));
     if (path.length() == 0 || !sdReady || !SD.exists(path)) {
       term["data"] = "File not found";
     } else {
@@ -858,25 +859,27 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
     sendJSON(c, term);
   }
   else if (cmd.startsWith("mkdir ")) {
-    String path = resolvePath(cmd.substring(6));
+    String path = resolvePath(orig.substring(6));
     if (path.length() == 0) { term["data"] = "Invalid path"; sendJSON(c, term); }
     bool ok = sdReady && SD.mkdir(path);
     term["data"] = ok ? "Created " + path : "Failed";
     sendJSON(c, term);
   }
   else if (cmd.startsWith("rm ")) {
-    String path = resolvePath(cmd.substring(3));
+    String path = resolvePath(orig.substring(3));
     if (path.length() == 0) { term["data"] = "Invalid path"; sendJSON(c, term); }
     bool ok = sdReady && SD.remove(path);
     term["data"] = ok ? "Removed " + path : "Failed";
     sendJSON(c, term);
   }
   else if (cmd.startsWith("mv ")) {
-    String rest = cmd.substring(3);
+    String rest = orig.substring(3);
     int sp = rest.indexOf(' ');
     if (sp > 0) {
       String src = resolvePath(rest.substring(0, sp));
-      String dst = resolvePath(rest.substring(sp + 1));
+      String dst = rest.substring(sp + 1);
+      dst.trim();
+      dst = resolvePath(dst);
       bool ok = false;
       if (sdReady) {
         File s = SD.open(src, FILE_READ);
@@ -902,7 +905,7 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
     sendJSON(c, term);
   }
   else if (cmd.startsWith("touch ")) {
-    String path = resolvePath(cmd.substring(6));
+    String path = resolvePath(orig.substring(6));
     if (path.length() == 0) { term["data"] = "Invalid path"; sendJSON(c, term); }
     bool ok = false;
     if (sdReady) {
@@ -913,7 +916,7 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
     sendJSON(c, term);
   }
   else if (cmd.startsWith("cat ")) {
-    String path = resolvePath(cmd.substring(4));
+    String path = resolvePath(orig.substring(4));
     if (path.length() == 0) { term["data"] = "Invalid path"; sendJSON(c, term); }
     String out = "";
     if (sdReady) {
@@ -933,13 +936,13 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
     sendJSON(c, term);
   }
   else if (cmd.startsWith("readfile ")) {
-    String path = resolvePath(cmd.substring(9));
+    String path = resolvePath(orig.substring(9));
     if (path.length() == 0) { term["data"] = "Invalid path"; sendJSON(c, term); }
     term["data"] = "Download: http://192.168.4.1/files?token=" + adminPass + "&path=" + urlEncode(path);
     sendJSON(c, term);
   }
   else if (cmd.startsWith("setwall ")) {
-    String src = resolvePath(cmd.substring(8));
+    String src = resolvePath(orig.substring(8));
     if (src.length() == 0) { term["data"] = "Invalid path"; sendJSON(c, term); }
     if (!sdReady) { term["data"] = "SD not ready"; sendJSON(c, term); }
     File in = SD.open(src, FILE_READ);
@@ -1194,7 +1197,7 @@ String shellCommand(const String& raw) {
     if (WiFi.status() == WL_CONNECTED) {
       out += "STA: connected to " + WiFi.SSID() + "  IP " + WiFi.localIP().toString() + "\n";
     } else {
-      out += "STA: " + String(WiFi.status() == WL_IDLE_STATUS ? "idle" : WiFi.status() == WL_CONNECT_FAILED ? "failed" : "connecting") + "\n";
+      out += "STA: " + staStatusString() + "\n";
     }
     return out;
   }
@@ -1482,6 +1485,19 @@ void connectSTA() {
   Serial.println("[ICY] STA connecting to " + staSSID);
   WiFi.begin(staSSID.c_str(), staPassword.c_str());
   staConnectStart = millis();
+}
+
+String staStatusString() {
+  switch (WiFi.status()) {
+    case WL_IDLE_STATUS:    return "idle";
+    case WL_SCAN_COMPLETED: return "scan completed";
+    case WL_NO_SSID_AVAIL:  return "no SSID";
+    case WL_CONNECT_FAILED: return "failed";
+    case WL_CONNECTION_LOST:return "lost";
+    case WL_CONNECTED:      return "connected";
+    case WL_DISCONNECTED:   return "disconnected";
+    default:                return "connecting";
+  }
 }
 
 // --- Packet sniffer / pcap ---
@@ -2095,6 +2111,7 @@ void setup() {
     else if (filename.endsWith(".js")) ct = "application/javascript";
     else if (filename.endsWith(".jpg") || filename.endsWith(".jpeg")) ct = "image/jpeg";
     else if (filename.endsWith(".png")) ct = "image/png";
+    else if (filename.endsWith(".svg")) ct = "image/svg+xml";
     else if (filename.endsWith(".txt") || filename.endsWith(".csv") || filename.endsWith(".json")) ct = "text/plain";
     request->send(SD, path, ct.c_str());
   });

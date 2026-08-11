@@ -78,6 +78,7 @@
         case 'terminal':
           appendTerminal(msg.data, false);
           if (window._curlCallback) { window._curlCallback(msg.data); delete window._curlCallback; }
+          if (window._pingCb) { window._pingCb(msg.data); delete window._pingCb; }
           break;
         case 'files': renderFiles(msg.data, msg.path); break;
         case 'networks': renderNetworks(msg.data); break;
@@ -222,7 +223,7 @@
       openWins[app] = div;
       addTaskIcon(app, a.title);
       initWindowBehavior(div, app);
-      if (typeof a.init === 'function') a.init(div);
+      if (typeof a.init === 'function') a.init(div, {sendCmd, adminToken, ws});
       focusWindow(app);
       if (app === 'wifi') ws.send(JSON.stringify({type:'scanner', action:'subscribe'}));
     }
@@ -435,6 +436,7 @@
         <button class="std" id="set-wall-btn" style="margin-top:5px;margin-bottom:10px">Set Wallpaper</button>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="std" id="set-save">Save</button>
+          <button class="std" id="set-forget" style="background:#2b3039;color:#e0e6ed">Forget STA</button>
           <button class="std" id="set-reboot" style="background:#ff6b6b">Reboot</button>
         </div>
         <p id="set-msg" style="margin-top:10px;color:#9aa3ad;font-size:12px"></p>
@@ -477,6 +479,7 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
           <button class="std" id="atk-start" style="background:#ff6b6b">Start</button>
           <button class="std" id="atk-stop" style="background:#2b3039;color:#e0e6ed">Stop</button>
+          <button class="std" id="atk-use">Use selected</button>
         </div>
         <div id="atk-status" style="background:#0f1115;border:1px solid #2b3039;border-radius:5px;padding:10px;font-family:monospace;font-size:12px">
           Status: idle
@@ -503,6 +506,17 @@
       }
       setInterval(setStatus, 1000);
 
+      function fillFromSelected() {
+        const sel = window._selectedAp;
+        if (!sel) return;
+        if (sel.ssid) ssid.value = sel.ssid;
+        if (sel.bssid) bssid.value = sel.bssid;
+        if (sel.channel) ch.value = sel.channel;
+        if (sel.index !== undefined && sel.index !== '') idx.value = sel.index;
+      }
+      fillFromSelected();
+
+      div.querySelector('#atk-use').addEventListener('click', fillFromSelected);
       div.querySelector('#atk-start').addEventListener('click', () => {
         let cmd = `attack -t ${type.value} -ch ${ch.value}`;
         const s = sanitizeAttackArg(ssid.value.trim()).replace(/"/g, "'");
@@ -745,7 +759,7 @@
           <h2 style="color:#36d13c;margin:0">Icy OS</h2>
           <p style="font-size:12px;color:#9aa3ad">portable into microcontroller</p>
         </div>
-        <div class="meter"><label><span>Version</span><span id="about-ver">1.1.0</span></label></div>
+        <div class="meter"><label><span>Version</span><span id="about-ver">1.2.0</span></label></div>
         <div class="meter"><label><span>Uptime</span><span id="about-uptime">--</span></label></div>
         <div class="meter"><label><span>Free Heap</span><span id="about-heap">--</span></label></div>
         <div class="meter"><label><span>SD Total</span><span id="about-sd-total">--</span></label></div>
@@ -1159,6 +1173,12 @@
         };
         ws.send(JSON.stringify({type:'settings', action:'set', value: payload}));
         document.getElementById('set-msg').textContent = 'Saving...';
+      });
+      div.querySelector('#set-forget').addEventListener('click', () => {
+        document.getElementById('set-stassid').value = '';
+        document.getElementById('set-stapass').value = '';
+        sendCmd('forgetsta');
+        document.getElementById('set-msg').textContent = 'STA forgotten';
       });
       div.querySelector('#set-reboot').addEventListener('click', () => sendCmd('reboot'));
       div.querySelector('#set-wall-btn').addEventListener('click', async () => {

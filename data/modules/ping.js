@@ -16,7 +16,6 @@
       go.addEventListener('click', () => {
         out.textContent = 'Pinging ' + host.value.trim() + '...';
         if (ctx && ctx.sendCmd) ctx.sendCmd('ping ' + host.value.trim());
-        else if (window.sendCmd) window.sendCmd('ping ' + host.value.trim());
       });
       window._pingCb = (text) => { out.textContent = text; };
     }

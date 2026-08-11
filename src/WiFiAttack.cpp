@@ -12,13 +12,13 @@ WiFiAttack::WiFiAttack()
 
 void WiFiAttack::stop() {
   running = false;
-  attackMode = MODE_NONE;
   packetCount = 0;
   ssidIndex = 0;
   // Return to the configured AP mode so the Web OS stays reachable
   if (attackMode == MODE_FAKE_AP) {
     // restore AP managed by main.cpp
   }
+  attackMode = MODE_NONE;
 }
 
 const char* WiFiAttack::getModeName() const {
