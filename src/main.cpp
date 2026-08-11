@@ -171,12 +171,10 @@ void loadSettings() {
     f.close();
     if (!e) {
       apSSID      = "Icy-OS";                    // keep the brand consistent
-      apPassword  = sanitize(doc["password"]   | apPassword);
+      apPassword  = "Password123";               // always use the known AP password
+      apChannel   = 1;                           // always use channel 1 for best stability
       adminPass   = sanitize(doc["adminPass"]  | adminPass);
       buzzerPin   = doc["buzzerGPIO"] | buzzerPin;
-      apChannel   = doc["channel"]     | apChannel;
-      if (apChannel < 1 || apChannel > 13) apChannel = 1;
-      if (apPassword.length() < 8) apPassword = "Password123";
       staSSID     = sanitize(doc["staSSID"]    | staSSID);
       staPassword = sanitize(doc["staPassword"] | staPassword);
       ntpServer   = sanitize(doc["ntpServer"]  | ntpServer);
@@ -1382,7 +1380,13 @@ void restoreAP() {
   wifi_mode_t target = (staSSID.length() > 0 && WiFi.status() == WL_CONNECTED) ? WIFI_AP_STA : WIFI_AP;
   if (WiFi.getMode() != target) WiFi.mode(target);
   if (WiFi.softAPIP() != localIP) WiFi.softAPConfig(localIP, gateway, subnet);
-  WiFi.softAP(apSSID.c_str(), apPassword.c_str(), apChannel, 0, 4);
+  // Only restart softAP if config changed to avoid disconnecting existing clients
+  static String lastSsid, lastPass;
+  if (lastSsid != apSSID || lastPass != apPassword) {
+    WiFi.softAP(apSSID.c_str(), apPassword.c_str(), apChannel, 0, 4);
+    lastSsid = apSSID;
+    lastPass = apPassword;
+  }
 }
 
 // --- STA / internet connection ---
@@ -1653,8 +1657,8 @@ void setup() {
   // SD card on VSPI
   disableLoopWDT();                     // allow SD.begin extra time without watchdog reboot
   SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
-  for (int attempt = 0; attempt < 3; attempt++) {
-    sdReady = SD.begin(SD_CS, SPI, 4000000);
+  for (int attempt = 0; attempt < 5; attempt++) {
+    sdReady = SD.begin(SD_CS, SPI, 1000000);  // 1 MHz for better card compatibility
     if (sdReady) break;
     Serial.println("SD retry " + String(attempt + 1));
     delay(500);
