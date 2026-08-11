@@ -626,9 +626,14 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
     JsonArray arr = doc.createNestedArray("open");
     if (ip.fromString(ipStr)) {
       WiFiClient client;
+      JsonObject banners = doc.createNestedObject("banners");
       for (int p = startP; p <= endP && arr.size() < 50; p++) {
         if (client.connect(ip, p, 200)) {
           arr.add(p);
+          client.setTimeout(200);
+          uint8_t b[64];
+          int n = client.read(b, sizeof(b));
+          if (n > 0) banners[String(p)] = String((char*)b, n);
           client.stop();
         }
         yield();
