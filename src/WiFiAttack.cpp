@@ -53,11 +53,10 @@ void WiFiAttack::baseSetup(uint8_t mode) {
   lastSsidCycle = 0;
   lastStatus = 0;
   ssidIndex = 0;
-  // Allow both AP and STA so we can transmit raw frames and still serve clients
-  WiFi.mode(WIFI_AP_STA);
-  if (channel > 0 && channel <= 13) {
-    esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
-  }
+  // Keep the AP running; do not change the channel to avoid disconnecting clients
+  if (WiFi.getMode() != WIFI_AP_STA) WiFi.mode(WIFI_AP_STA);
+  // The real channel switch would drop AP clients; attacks run on the AP's channel
+  // if (channel > 0 && channel <= 13) esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
 }
 
 // --- Utility ---
@@ -225,7 +224,8 @@ void WiFiAttack::channelHop(uint32_t now) {
   lastHop = now;
   channel++;
   if (channel > 13) channel = 1;
-  esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
+  // Disabled to keep the AP stable; sniffer/attack runs on AP's channel
+  // esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
 }
 
 void WiFiAttack::cycleSsid(uint32_t now) {

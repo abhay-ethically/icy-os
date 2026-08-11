@@ -173,7 +173,7 @@ void loadSettings() {
       apSSID      = "Icy-OS";                    // keep the brand consistent
       apPassword  = "Password123";               // always use the known AP password
       apChannel   = 1;                           // always use channel 1 for best stability
-      adminPass   = sanitize(doc["adminPass"]  | adminPass);
+      adminPass   = "admin";                     // keep the web auth token predictable
       buzzerPin   = doc["buzzerGPIO"] | buzzerPin;
       staSSID     = sanitize(doc["staSSID"]    | staSSID);
       staPassword = sanitize(doc["staPassword"] | staPassword);
@@ -956,7 +956,26 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
   }
 }
 
-// --- Path utilities ---
+// --- URL / path utilities ---
+
+String urlDecode(const String& in) {
+  String out;
+  out.reserve(in.length());
+  for (size_t i = 0; i < in.length(); i++) {
+    char c = in[i];
+    if (c == '+' && i < in.length() - 2 && in[i + 1] == ' ')
+      out += ' ';
+    else if (c == '%' && i + 2 < in.length()) {
+      char h1 = in[i + 1], h2 = in[i + 2];
+      int v1 = (h1 >= '0' && h1 <= '9') ? h1 - '0' : (h1 >= 'A' && h1 <= 'F') ? h1 - 'A' + 10 : (h1 >= 'a' && h1 <= 'f') ? h1 - 'a' + 10 : -1;
+      int v2 = (h2 >= '0' && h2 <= '9') ? h2 - '0' : (h2 >= 'A' && h2 <= 'F') ? h2 - 'A' + 10 : (h2 >= 'a' && h2 <= 'f') ? h2 - 'a' + 10 : -1;
+      if (v1 >= 0 && v2 >= 0) { out += (char)(v1 * 16 + v2); i += 2; }
+      else out += c;
+    } else
+      out += c;
+  }
+  return out;
+}
 
 String resolvePath(const String& in) {
   String p = in;
@@ -1846,7 +1865,7 @@ void setup() {
       return;
     }
     String path = "/";
-    if (request->hasParam("path")) path = request->getParam("path")->value();
+    if (request->hasParam("path")) path = urlDecode(request->getParam("path")->value());
     if (path.length() == 0) path = "/";
     if (!path.startsWith("/")) path = "/" + path;
     path = resolvePath(path);
