@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Icy OS Web OS</title>
+  <meta name="theme-color" content="#050505">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/ui.js" defer></script>
+</head>
+<body>
+
+  <!-- Login -->
+  <div id="login-overlay">
+    <div class="login-box">
+      <h2>Icy OS Login</h2>
+      <input type="text" id="login-user" value="admin" disabled>
+      <input type="password" id="login-pass" placeholder="admin password" value="admin">
+      <button id="login-btn" class="std">Connect</button>
+      <p id="login-msg"></p>
+    </div>
+  </div>
+
+  <!-- Desktop -->
+  <div id="desktop"></div>
+
+  <!-- Start Menu -->
+  <div id="start-menu">
+    <input type="text" id="menu-search" placeholder="Search apps...">
+    <div class="menu-item" data-app="system">System Status</div>
+    <div class="menu-item" data-app="terminal">Terminal</div>
+    <div class="menu-item" data-app="files">File Manager</div>
+    <div class="menu-item" data-app="wifi">Wi-Fi Scanner</div>
+    <div class="menu-item" data-app="attacks">Attacks</div>
+    <div class="menu-item" data-app="portal">Captive Portal</div>
+    <div class="menu-item" data-app="calc">Calculator</div>
+    <div class="menu-item" data-app="note">Notepad</div>
+    <div class="menu-item" data-app="guide">Guide</div>
+    <div class="menu-item" data-app="network">Network</div>
+    <div class="menu-item" data-app="clock">Clock</div>
+    <div class="menu-item" data-app="task">Task Manager</div>
+    <div class="menu-item" data-app="about">About</div>
+    <div class="menu-item" data-app="game">Pong</div>
+    <div class="menu-item" data-app="snake">Snake</div>
+    <div class="menu-item" data-app="tictactoe">Tic-Tac-Toe</div>
+    <div class="menu-item" data-app="minesweeper">Minesweeper</div>
+    <div class="menu-item" data-app="weather">Weather</div>
+    <div class="menu-item" data-app="settings">Settings</div>
+  </div>
+
+  <!-- Taskbar -->
+  <div id="taskbar">
+    <button id="start-btn">Start</button>
+    <div id="task-icons"></div>
+    <div id="tray">
+      <span id="sd-status">SD: --</span>
+      <span id="heap-status">Heap: --</span>
+      <span id="stations-status">Stations: 0</span>
+      <span id="clock">00:00</span>
+    </div>
+  </div>
+
+</body>
+</html>
