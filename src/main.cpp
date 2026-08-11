@@ -45,6 +45,11 @@ int     ntpOffset   = 0;
 bool    sdReady     = false;
 String  currentDir  = "/";
 
+unsigned long staConnectStart = 0;
+IPAddress localIP(192, 168, 4, 1);
+IPAddress gateway(192, 168, 4, 1);
+IPAddress subnet(255, 255, 255, 0);
+
 // Forward declarations
 String resolvePath(const String& in);
 String shellCommand(const String& cmd);
@@ -275,7 +280,7 @@ void startWiFiScan() {
   if (scanPending) return;
   scanPending = true;
   // Need STA interface for scanning, but keep AP alive for client
-  WiFi.mode(WIFI_AP_STA);
+  if (WiFi.getMode() != WIFI_AP_STA) WiFi.mode(WIFI_AP_STA);
   WiFi.scanNetworks(true);   // async
 }
 
@@ -361,8 +366,9 @@ void finishWiFiScan() {
   }
 
   WiFi.scanDelete();
-  WiFi.mode(WIFI_AP);   // restore pure-AP mode; clients may briefly reconnect
+  restoreAP();           // keep AP up and on the right channel
   scanPending = false;
+  yield();
   broadcastJSON(doc);
 
   // Also echo to terminal
@@ -1283,9 +1289,10 @@ String shellCommand(const String& raw) {
 
 // --- AP restore helper ---
 void restoreAP() {
-  if (staSSID.length() > 0) WiFi.mode(WIFI_AP_STA);
-  else WiFi.mode(WIFI_AP);
+  wifi_mode_t target = (staSSID.length() > 0 && WiFi.status() == WL_CONNECTED) ? WIFI_AP_STA : WIFI_AP;
+  if (WiFi.getMode() != target) WiFi.mode(target);
   esp_wifi_set_channel(apChannel, WIFI_SECOND_CHAN_NONE);
+  WiFi.softAPConfig(localIP, gateway, subnet);
   WiFi.softAP(apSSID.c_str(), apPassword.c_str(), apChannel, 0, 4);
 }
 
@@ -1293,7 +1300,11 @@ void restoreAP() {
 void connectSTA() {
   if (staSSID.length() == 0) return;
   if (WiFi.getMode() != WIFI_AP_STA) WiFi.mode(WIFI_AP_STA);
+  WiFi.disconnect();
+  WiFi.setAutoConnect(false);
+  WiFi.setAutoReconnect(false);
   WiFi.begin(staSSID.c_str(), staPassword.c_str());
+  staConnectStart = millis();
 }
 
 // --- WebSocket event handler ---
@@ -1541,9 +1552,6 @@ void setup() {
   // Bring up Wi-Fi AP first so the SSID is visible even if SD init hangs
   WiFi.mode(WIFI_AP);
   WiFi.setSleep(false);
-  IPAddress localIP(192, 168, 4, 1);
-  IPAddress gateway(192, 168, 4, 1);
-  IPAddress subnet(255, 255, 255, 0);
   WiFi.softAPConfig(localIP, gateway, subnet);
   WiFi.softAP(apSSID.c_str(), apPassword.c_str(), apChannel, 0, 4);
 
@@ -2005,11 +2013,17 @@ void loop() {
     finishWiFiScan();
   }
 
-  // Auto-refresh for scanner subscribers every 30s
-  static unsigned long lastAutoScan = 0;
-  if (millis() - lastAutoScan > 30000 && !scannerSubs.empty()) {
-    lastAutoScan = millis();
-    startWiFiScan();
+  // STA connect watchdog: give up after 30s so AP stays stable
+  if (staConnectStart > 0) {
+    if (WiFi.status() == WL_CONNECTED) {
+      staConnectStart = 0;
+      restoreAP();
+    } else if (millis() - staConnectStart > 30000) {
+      WiFi.disconnect();
+      restoreAP();
+      staConnectStart = 0;
+      Serial.println("STA connect timeout, keeping AP only");
+    }
   }
 
   // Attack engine tick
