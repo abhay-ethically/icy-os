@@ -249,6 +249,7 @@ void listFiles(AsyncWebSocketClient* c, const String& path) {
   if (p.length() == 0) p = "/";
   File root = SD.open(p);
   if (!root || !root.isDirectory()) {
+    if (root) root.close();
     DynamicJsonDocument doc(256);
     doc["type"] = "error";
     doc["data"] = "Cannot open " + p;
@@ -1544,18 +1545,22 @@ void onWsEvent(AsyncWebSocket* server, AsyncWebSocketClient* client,
 void setup() {
   Serial.begin(115200);
   delay(200);
+  Serial.println("\n[ICY] Booting...");
 
   // Buzzer PWM
+  Serial.println("[ICY] Buzzer init");
   ledcSetup(0, 2000, 8);
   ledcAttachPin(buzzerPin, 0);
   ledcWriteTone(0, 0);
 
   // Bring up Wi-Fi AP first so the SSID is visible even if SD init hangs
+  Serial.println("[ICY] WiFi init");
+  WiFi.mode(WIFI_AP);
   WiFi.setSleep(false);
   restoreAP();
   delay(100);
 
-  Serial.print("AP IP: ");
+  Serial.print("[ICY] AP IP: ");
   Serial.println(WiFi.softAPIP());
 
   // SD card on VSPI
@@ -1689,8 +1694,12 @@ void setup() {
     request->send(200, "text/html", setupHtml);
   });
 
-  // Hard reset of the web UI files (SD only, not authenticated to help a broken UI)
+  // Hard reset of the web UI files (token required to prevent abuse)
   server.on("/resetui", HTTP_GET, [setupHtml](AsyncWebServerRequest* request) {
+    if (!request->hasParam("token") || request->getParam("token")->value() != adminPass) {
+      request->send(401, "text/plain", "Unauthorized");
+      return;
+    }
     if (sdReady) {
       SD.remove("/index.html");
       SD.remove("/service-worker.js");
@@ -1748,8 +1757,15 @@ void setup() {
     if (request->hasParam("path")) path = request->getParam("path")->value();
     if (path.length() == 0) path = "/";
     if (!path.startsWith("/")) path = "/" + path;
+    path = resolvePath(path);
+    if (path.length() == 0) {
+      request->send(403, "text/plain", "Forbidden");
+      return;
+    }
     File f = SD.open(path);
-    if (!f || f.isDirectory()) {
+    bool ok = f && !f.isDirectory();
+    f.close();
+    if (!ok) {
       request->send(404, "text/plain", "Not found");
       return;
     }
@@ -1802,7 +1818,12 @@ void setup() {
           request->send(401, "text/plain", "Unauthorized");
           return;
         }
-        if (!Update.begin(request->contentLength())) {
+        size_t contentLen = request->contentLength();
+        if (contentLen == 0 || contentLen > 0x150000) {
+          request->send(400, "text/plain", "Invalid OTA size");
+          return;
+        }
+        if (!Update.begin(contentLen)) {
           request->send(500, "text/plain", Update.errorString());
           return;
         }
