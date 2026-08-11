@@ -1038,7 +1038,7 @@ String shellCommand(const String& raw) {
   // neofetch
   if (s == "neofetch") {
     String out = "   ___  ____  __  __  ___  _   _ \n";
-    out += "  | __||__ / |  \/  || __|| | | |\n";
+    out += "  | __||__ / |  /  || __|| | | |\n";
     out += "  | _|  |_ \\ | |\/| || _| | |_| |\n";
     out += "  |___||___/ |_|  |_||___| \\___/ \n";
     out += "OS:        Icy OS Web OS\n";
@@ -1289,18 +1289,19 @@ String shellCommand(const String& raw) {
 
 // --- AP restore helper ---
 void restoreAP() {
+  if (apSSID.length() == 0) apSSID = "Icy-OS";
   wifi_mode_t target = (staSSID.length() > 0 && WiFi.status() == WL_CONNECTED) ? WIFI_AP_STA : WIFI_AP;
   if (WiFi.getMode() != target) WiFi.mode(target);
   esp_wifi_set_channel(apChannel, WIFI_SECOND_CHAN_NONE);
-  WiFi.softAPConfig(localIP, gateway, subnet);
+  if (WiFi.softAPIP() != localIP) WiFi.softAPConfig(localIP, gateway, subnet);
   WiFi.softAP(apSSID.c_str(), apPassword.c_str(), apChannel, 0, 4);
 }
 
 // --- STA / internet connection ---
 void connectSTA() {
-  if (staSSID.length() == 0) return;
+  if (staSSID.length() == 0) { restoreAP(); staConnectStart = 0; return; }
+  if (WiFi.status() == WL_CONNECTED && WiFi.SSID() == staSSID) { restoreAP(); staConnectStart = 0; return; }
   if (WiFi.getMode() != WIFI_AP_STA) WiFi.mode(WIFI_AP_STA);
-  WiFi.disconnect();
   WiFi.setAutoConnect(false);
   WiFi.setAutoReconnect(false);
   WiFi.begin(staSSID.c_str(), staPassword.c_str());
@@ -1550,10 +1551,9 @@ void setup() {
   ledcWriteTone(0, 0);
 
   // Bring up Wi-Fi AP first so the SSID is visible even if SD init hangs
-  WiFi.mode(WIFI_AP);
   WiFi.setSleep(false);
-  WiFi.softAPConfig(localIP, gateway, subnet);
-  WiFi.softAP(apSSID.c_str(), apPassword.c_str(), apChannel, 0, 4);
+  restoreAP();
+  delay(100);
 
   Serial.print("AP IP: ");
   Serial.println(WiFi.softAPIP());
