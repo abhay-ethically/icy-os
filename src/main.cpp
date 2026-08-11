@@ -1643,7 +1643,8 @@ void onWsEvent(AsyncWebSocket* server, AsyncWebSocketClient* client,
           d["ntpServer"]   = ntpServer;
           d["ntpOffset"]   = ntpOffset;
           d["staIP"]       = (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString() : "";
-          d["staStatus"]   = (WiFi.status() == WL_CONNECTED) ? "connected" : "disconnected";
+          d["staStatus"]   = staStatusString();
+          d["staRSSI"]     = (WiFi.status() == WL_CONNECTED) ? String(WiFi.RSSI()) + " dBm" : "";
           sendJSON(client, s);
         } else if (action && strcmp(action, "set") == 0) {
           JsonObject val = doc["value"].as<JsonObject>();
@@ -1730,7 +1731,8 @@ void onWsEvent(AsyncWebSocket* server, AsyncWebSocketClient* client,
             d["ntpServer"]   = ntpServer;
             d["ntpOffset"]   = ntpOffset;
             d["staIP"]       = (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString() : "";
-            d["staStatus"]   = (WiFi.status() == WL_CONNECTED) ? "connected" : "disconnected";
+            d["staStatus"]   = staStatusString();
+            d["staRSSI"]     = (WiFi.status() == WL_CONNECTED) ? String(WiFi.RSSI()) + " dBm" : "";
             d["rebootRequired"] = apChanged;
             sendJSON(client, s);
 

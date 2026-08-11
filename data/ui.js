@@ -25,6 +25,12 @@
       return String(str).split('').filter(c => !bad.includes(c)).join('');
     }
 
+    const icons = {
+      system: '💻', network: '📡', settings: '⚙️', terminal: '💲', files: '📁',
+      note: '📝', calc: '🧮', clock: '🕐', task: '📊', about: 'ℹ️',
+      wifi: '📶', attacks: '⚡', portal: '🚪', guide: '📖'
+    };
+
     function connect(password) {
       if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
       if (ws) { try { ws.close(); } catch (e) {} }
@@ -66,6 +72,8 @@
         case 'auth':
           if (msg.data === true) {
             document.getElementById('login-overlay').style.display = 'none';
+            const accent = localStorage.getItem('icy-accent') || '#36d13c';
+            document.body.style.setProperty('--accent', accent);
             loadModules();
             // request settings and a file listing
             ws.send(JSON.stringify({type: 'settings', action: 'get'}));
@@ -112,6 +120,21 @@
       .then(r => { if (r.status === 200) document.body.style.backgroundImage = "url('/wallpaper.jpg?t=" + Date.now() + "')"; })
       .catch(() => {});
 
+    // --- Right-click context menu ---
+    const ctxMenu = document.createElement('div');
+    ctxMenu.id = 'ctx-menu';
+    ctxMenu.innerHTML = `<div class="ctx-item" data-app="terminal">Terminal</div><div class="ctx-item" data-app="settings">Settings</div><div class="ctx-item" data-app="network">Network</div><div class="ctx-item" data-app="about">About</div>`;
+    document.body.appendChild(ctxMenu);
+    const desktop = document.getElementById('desktop');
+    desktop.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      ctxMenu.style.display = 'block';
+      ctxMenu.style.left = Math.min(e.clientX, window.innerWidth - 160) + 'px';
+      ctxMenu.style.top = Math.min(e.clientY, window.innerHeight - 160) + 'px';
+    });
+    document.addEventListener('click', (e) => { if (!ctxMenu.contains(e.target)) ctxMenu.style.display = 'none'; });
+    ctxMenu.addEventListener('click', (e) => { const a = e.target.dataset.app; if (a) { openWindow(a); ctxMenu.style.display = 'none'; } });
+
     // --- Start menu ---
     const startMenu = document.getElementById('start-menu');
     document.getElementById('start-btn').addEventListener('click', (e) => {
@@ -137,28 +160,28 @@
     // --- Clock ---
     setInterval(() => {
       const d = new Date();
-      document.getElementById('clock').textContent = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+      document.getElementById('clock').textContent = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
     }, 1000);
 
     // --- Window manager ---
     let zTop = 100;
     const winPos = { system: {x:60,y:40}, terminal: {x:90,y:70}, files: {x:120,y:100}, wifi: {x:150,y:130}, settings: {x:180,y:160}, attacks: {x:210,y:190}, portal: {x:260,y:220}, calc: {x:310,y:250}, note: {x:340,y:280}, guide: {x:370,y:310}, viewer: {x:400,y:340}, network: {x:430,y:370}, about: {x:460,y:400}, clock: {x:490,y:430}, task: {x:520,y:460} };
     const apps = {
-      system: { title: 'System Status', w: 360, h: 400, html: systemHTML() },
-      terminal: { title: 'Terminal', w: 560, h: 380, html: terminalHTML() },
-      files: { title: 'File Manager', w: 520, h: 420, html: filesHTML() },
-      wifi: { title: 'Wi-Fi Scanner', w: 560, h: 420, html: wifiHTML() },
-      settings: { title: 'Settings', w: 420, h: 360, html: settingsHTML() },
-      attacks: { title: 'Attacks', w: 520, h: 480, html: attacksHTML() },
-      portal: { title: 'Captive Portal', w: 480, h: 420, html: portalHTML() },
-      calc: { title: 'Calculator', w: 280, h: 380, html: calcHTML() },
-      note: { title: 'Notepad', w: 420, h: 320, html: noteHTML() },
-      guide: { title: 'Guide', w: 460, h: 420, html: guideHTML() },
+      system: { title: 'System Status', icon: icons.system, w: 360, h: 400, html: systemHTML() },
+      terminal: { title: 'Terminal', icon: icons.terminal, w: 560, h: 380, html: terminalHTML() },
+      files: { title: 'File Manager', icon: icons.files, w: 520, h: 420, html: filesHTML() },
+      wifi: { title: 'Wi-Fi Scanner', icon: icons.wifi, w: 560, h: 420, html: wifiHTML() },
+      settings: { title: 'Settings', icon: icons.settings, w: 420, h: 360, html: settingsHTML() },
+      attacks: { title: 'Attacks', icon: icons.attacks, w: 520, h: 480, html: attacksHTML() },
+      portal: { title: 'Captive Portal', icon: icons.portal, w: 480, h: 420, html: portalHTML() },
+      calc: { title: 'Calculator', icon: icons.calc, w: 280, h: 380, html: calcHTML() },
+      note: { title: 'Notepad', icon: icons.note, w: 420, h: 320, html: noteHTML() },
+      guide: { title: 'Guide', icon: icons.guide, w: 460, h: 420, html: guideHTML() },
       viewer: { title: 'File Viewer', w: 520, h: 420, html: viewerHTML() },
-      network: { title: 'Network', w: 460, h: 420, html: networkHTML() },
-      about: { title: 'About Icy OS', w: 360, h: 380, html: aboutHTML() },
-      clock: { title: 'Clock', w: 260, h: 120, html: clockHTML() },
-      task: { title: 'Task Manager', w: 400, h: 320, html: taskHTML() }
+      network: { title: 'Network', icon: icons.network, w: 460, h: 420, html: networkHTML() },
+      about: { title: 'About Icy OS', icon: icons.about, w: 360, h: 380, html: aboutHTML() },
+      clock: { title: 'Clock', icon: icons.clock, w: 260, h: 120, html: clockHTML() },
+      task: { title: 'Task Manager', icon: icons.task, w: 400, h: 320, html: taskHTML() }
     };
     const openWins = {};
 
@@ -183,13 +206,14 @@
           const mod = window.icyModules[m.id];
           if (!mod) continue;
           // register in apps
-          apps[m.id] = { title: mod.name || m.name || m.id, w: m.w || 520, h: m.h || 380, html: mod.html || '', init: mod.init };
+          const icon = mod.icon || m.icon || '📦';
+          apps[m.id] = { title: mod.name || m.name || m.id, icon: icon, w: m.w || 520, h: m.h || 380, html: mod.html || '', init: mod.init };
           winPos[m.id] = { x: 90 + Object.keys(winPos).length * 30, y: 70 + Object.keys(winPos).length * 20 };
           // add menu item
           const el = document.createElement('div');
           el.className = 'menu-item';
           el.dataset.app = m.id;
-          el.textContent = mod.name || m.name || m.id;
+          el.innerHTML = '<span class="menu-icon">' + icon + '</span>' + escapeHtml(mod.name || m.name || m.id);
           container.appendChild(el);
         }
       } catch (e) { console.error('modules load error', e); }
@@ -201,16 +225,24 @@
       const pos = winPos[app];
       const id = 'win-' + app;
       const div = document.createElement('div');
-      div.className = 'window';
+      div.className = 'window opening';
       div.id = id;
-      div.style.width = a.w + 'px';
-      div.style.height = a.h + 'px';
-      div.style.left = pos.x + 'px';
-      div.style.top = pos.y + 'px';
+      if (window.innerWidth < 600) {
+        div.style.width = '100%';
+        div.style.height = 'calc(100% - 44px)';
+        div.style.top = '0';
+        div.style.left = '0';
+        div.classList.add('mobile');
+      } else {
+        div.style.width = a.w + 'px';
+        div.style.height = a.h + 'px';
+        div.style.left = pos.x + 'px';
+        div.style.top = pos.y + 'px';
+      }
       div.style.zIndex = ++zTop;
       div.innerHTML = `
         <div class="titlebar" data-app="${app}">
-          <span class="win-title">${a.title}</span>
+          <span class="win-title"><span class="win-icon">${a.icon || ''}</span>${a.title}</span>
           <div class="win-btns">
             <button class="min" data-app="${app}">_</button>
             <button class="max" data-app="${app}">&#x25A1;</button>
@@ -221,21 +253,25 @@
       `;
       document.getElementById('desktop').appendChild(div);
       openWins[app] = div;
-      addTaskIcon(app, a.title);
+      addTaskIcon(app, a.title, a.icon);
       initWindowBehavior(div, app);
       if (typeof a.init === 'function') a.init(div, {sendCmd, adminToken, ws});
       focusWindow(app);
+      setTimeout(() => div.classList.remove('opening'), 200);
       if (app === 'wifi') ws.send(JSON.stringify({type:'scanner', action:'subscribe'}));
     }
 
     function closeWindow(app) {
       const div = openWins[app];
       if (!div) return;
-      div.remove();
-      delete openWins[app];
-      if (app === 'wifi') ws.send(JSON.stringify({type:'scanner', action:'unsubscribe'}));
-      const ic = document.getElementById('task-' + app);
-      if (ic) ic.remove();
+      div.classList.add('closing');
+      setTimeout(() => {
+        div.remove();
+        delete openWins[app];
+        if (app === 'wifi') ws.send(JSON.stringify({type:'scanner', action:'unsubscribe'}));
+        const ic = document.getElementById('task-' + app);
+        if (ic) ic.remove();
+      }, 150);
     }
 
     function focusWindow(app) {
@@ -252,12 +288,12 @@
       if (ic) ic.classList.add('active');
     }
 
-    function addTaskIcon(app, title) {
+    function addTaskIcon(app, title, icon) {
       const bar = document.getElementById('task-icons');
       const ic = document.createElement('div');
       ic.className = 'task-icon active';
       ic.id = 'task-' + app;
-      ic.textContent = title;
+      ic.innerHTML = (icon ? '<span class="task-icon-emoji">' + icon + '</span>' : '') + '<span class="task-icon-text">' + escapeHtml(title) + '</span>';
       ic.addEventListener('click', () => {
         const div = openWins[app];
         if (div && !div.classList.contains('minimized')) {
@@ -429,13 +465,16 @@
           <div class="field"><label>Buzzer GPIO</label><input id="set-buzz" type="number"></div>
           <div class="field"><label>STA SSID (internet)</label><input id="set-stassid" placeholder="leave blank to disable"></div>
           <div class="field"><label>STA Password</label><input id="set-stapass" type="password" placeholder="Wi-Fi password"></div>
+          <div class="field"><label>Accent Color</label><select id="set-accent"><option value="#36d13c">Hacker Green</option><option value="#36d1d1">Cyan</option><option value="#ff6b6b">Red</option><option value="#4d8af0">Blue</option></select></div>
           <div class="field"><label>NTP Server</label><input id="set-ntp" placeholder="pool.ntp.org"></div>
           <div class="field"><label>NTP Offset (hours)</label><input id="set-offset" type="number" min="-12" max="14"></div>
           <div class="field"><label>Wallpaper</label><input type="file" id="set-wall" accept="image/*"></div>
         </div>
+        <div id="set-sta-status" style="font-size:13px;color:#9aa3ad;margin:8px 0">STA: --</div>
         <button class="std" id="set-wall-btn" style="margin-top:5px;margin-bottom:10px">Set Wallpaper</button>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="std" id="set-save">Save</button>
+          <button class="std" id="set-connect" style="background:#36d13c;color:#000">Connect</button>
           <button class="std" id="set-forget" style="background:#2b3039;color:#e0e6ed">Forget STA</button>
           <button class="std" id="set-reboot" style="background:#ff6b6b">Reboot</button>
         </div>
@@ -746,10 +785,21 @@
         <div style="display:flex;gap:8px;margin-bottom:10px">
           <button class="std" id="net-scan">Scan</button>
           <button class="std" id="net-refresh" style="background:#2b3039;color:#e0e6ed">Refresh</button>
+          <button class="std" id="net-forget" style="background:#2b3039;color:#e0e6ed">Forget</button>
         </div>
         <div id="net-info" style="font-size:13px;margin-bottom:10px"></div>
         <table id="net-table"><thead><tr><th>SSID</th><th>RSSI</th><th>Ch</th><th>Auth</th><th>Action</th></tr></thead><tbody id="net-list"></tbody></table>
         <div id="net-sta" style="font-size:13px;margin-top:10px;color:#9aa3ad">Saved STA: --</div>
+        <div id="net-modal" style="display:none;position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:10000;align-items:center;justify-content:center">
+          <div style="background:#171a21;border:1px solid #2b3039;border-radius:10px;padding:20px;width:320px;box-shadow:0 10px 40px rgba(0,0,0,0.5)">
+            <h4 style="margin-bottom:10px">Connect to <span id="net-conn-ssid"></span></h4>
+            <input type="password" id="net-conn-pass" placeholder="Wi-Fi password" style="width:100%;background:#0f1115;border:1px solid #2b3039;color:#e0e6ed;padding:10px;border-radius:6px;margin-bottom:12px">
+            <div style="display:flex;gap:8px">
+              <button class="std" id="net-conn-go" style="flex:1;background:#36d13c;color:#000">Connect</button>
+              <button class="std" id="net-conn-cancel" style="flex:1;background:#2b3039;color:#e0e6ed">Cancel</button>
+            </div>
+          </div>
+        </div>
       `;
     }
 
@@ -759,7 +809,7 @@
           <h2 style="color:#36d13c;margin:0">Icy OS</h2>
           <p style="font-size:12px;color:#9aa3ad">portable into microcontroller</p>
         </div>
-        <div class="meter"><label><span>Version</span><span id="about-ver">1.2.0</span></label></div>
+        <div class="meter"><label><span>Version</span><span id="about-ver">1.3.0</span></label></div>
         <div class="meter"><label><span>Uptime</span><span id="about-uptime">--</span></label></div>
         <div class="meter"><label><span>Free Heap</span><span id="about-heap">--</span></label></div>
         <div class="meter"><label><span>SD Total</span><span id="about-sd-total">--</span></label></div>
@@ -794,11 +844,24 @@
     }
 
     function initNetwork(div) {
-      div.querySelector('#net-scan').addEventListener('click', () => sendCmd('scanall'));
+      div.querySelector('#net-scan').addEventListener('click', () => { toast('Scanning...'); sendCmd('scanall'); });
       div.querySelector('#net-refresh').addEventListener('click', () => {
         const d = window.lastSysInfo || {};
         div.querySelector('#net-info').innerHTML = `<b>AP:</b> ${escapeHtml(d.ap_ssid || 'Icy-OS')}<br><b>IP:</b> ${escapeHtml(d.ap_ip || '--')}<br><b>MAC:</b> ${escapeHtml(d.ap_mac || '--')}<br><b>Stations:</b> ${d.stations ?? 0}`;
         div.querySelector('#net-sta').textContent = `Saved STA: ${escapeHtml(d.sta_status || 'none')} ${d.sta_ip ? d.sta_ip : ''}`;
+      });
+      div.querySelector('#net-forget').addEventListener('click', () => { sendCmd('forgetsta'); toast('Saved STA forgotten'); });
+      const modal = div.querySelector('#net-modal');
+      const ssidEl = div.querySelector('#net-conn-ssid');
+      const passEl = div.querySelector('#net-conn-pass');
+      div.querySelector('#net-conn-cancel').addEventListener('click', () => { modal.style.display = 'none'; });
+      div.querySelector('#net-conn-go').addEventListener('click', () => {
+        const ssid = ssidEl.textContent;
+        const pass = passEl.value;
+        const safe = sanitizeAttackArg(pass).replace(/"/g, "'");
+        sendCmd(`setsta "${ssid.replace(/"/g, "'")}" "${safe}"`);
+        modal.style.display = 'none';
+        toast('Connecting to ' + ssid + '...');
       });
       const tbody = div.querySelector('#net-list');
       tbody.addEventListener('click', (e) => {
@@ -807,10 +870,10 @@
         if (e.target.classList.contains('net-connect')) {
           const ssid = tr.dataset.ssid;
           if (!ssid) return;
-          const pass = window.prompt('Password for ' + ssid);
-          if (pass === null) return;
-          const safe = sanitizeAttackArg(pass).replace(/"/g, "'");
-          sendCmd(`setsta "${ssid.replace(/"/g, "'")}" "${safe}"`);
+          ssidEl.textContent = ssid;
+          passEl.value = '';
+          modal.style.display = 'flex';
+          passEl.focus();
         } else {
           document.querySelectorAll('#net-list tr').forEach(r => r.classList.remove('selected'));
           tr.classList.add('selected');
@@ -904,6 +967,10 @@
       set('stations-status', 'Stations: ' + d.stations);
       const sd = document.getElementById('sd-status');
       if (sd) { sd.textContent = 'SD: ' + (d.sd ? 'OK' : 'ERR'); sd.className = d.sd ? 'good' : 'bad'; }
+      const net = document.getElementById('net-status');
+      if (net) { net.textContent = 'NET: ' + (d.sta_status || 'none'); net.className = (d.sta_status === 'connected') ? 'good' : 'bad'; }
+      const st = document.getElementById('sta-icon');
+      if (st) { st.textContent = (d.sta_status === 'connected') ? '🌐' : '📡'; }
 
       // About app
       set('about-uptime', formatUptime(d.uptime));
@@ -1153,8 +1220,12 @@
       set('set-stapass', d.staPassword);
       set('set-ntp', d.ntpServer);
       set('set-offset', d.ntpOffset);
+      const accent = localStorage.getItem('icy-accent') || '#36d13c';
+      set('set-accent', accent);
+      const status = document.getElementById('set-sta-status');
+      if (status) status.textContent = 'STA: ' + (d.staStatus || 'unknown') + (d.staIP ? '  ' + d.staIP : '') + (d.staRSSI ? '  ' + d.staRSSI : '');
       const msg = document.getElementById('set-msg');
-      if (msg) msg.textContent = 'STA: ' + (d.staStatus || 'unknown') + (d.staIP ? ' ' + d.staIP : '');
+      if (msg) msg.textContent = 'Saved. STA: ' + (d.staStatus || 'unknown');
     }
 
     function initSettings(div) {
@@ -1172,8 +1243,12 @@
           ntpOffset: parseInt(document.getElementById('set-offset').value, 10)
         };
         ws.send(JSON.stringify({type:'settings', action:'set', value: payload}));
+        const accent = document.getElementById('set-accent').value;
+        localStorage.setItem('icy-accent', accent);
+        document.body.style.setProperty('--accent', accent);
         document.getElementById('set-msg').textContent = 'Saving...';
       });
+      div.querySelector('#set-connect').addEventListener('click', () => { sendCmd('reconnect'); toast('Reconnecting STA...'); });
       div.querySelector('#set-forget').addEventListener('click', () => {
         document.getElementById('set-stassid').value = '';
         document.getElementById('set-stapass').value = '';

@@ -23,7 +23,7 @@
       width: 320px;
       box-shadow: 0 10px 40px rgba(0,0,0,0.5);
     }
-    .login-box h2 { margin-bottom: 20px; text-align: center; color: #36d13c; font-size: 22px; letter-spacing: 2px; }
+    .login-box h2 { margin-bottom: 20px; text-align: center; color: var(--accent, #36d13c); font-size: 22px; letter-spacing: 2px; }
     .login-box input {
       width: 100%;
       background: #0f1115;
@@ -39,7 +39,7 @@
       padding: 12px;
       border: none;
       border-radius: 6px;
-      background: #36d13c;
+      background: var(--accent, #36d13c);
       color: #000;
       font-weight: bold;
       cursor: pointer;
@@ -59,7 +59,7 @@
     }
     #start-btn {
       padding: 0 18px; height: 44px;
-      background: #36d13c; color: #000;
+      background: var(--accent, #36d13c); color: #000;
       border: none; font-weight: bold; font-size: 14px;
       cursor: pointer;
     }
@@ -100,7 +100,7 @@
     .menu-sep {
       padding: 6px 16px 4px;
       font-size: 11px; font-weight: 700; text-transform: uppercase;
-      color: #36d13c; letter-spacing: 1px;
+      color: var(--accent, #36d13c); letter-spacing: 1px;
       border-top: 1px solid #1b1f25;
     }
     .menu-sep:first-child { border-top: none; }
@@ -110,7 +110,7 @@
       background: #0f1115; border: 1px solid #2b3039; color: #e0e6ed;
       border-radius: 6px; outline: none;
     }
-    #menu-search:focus { border-color: #36d13c; }
+    #menu-search:focus { border-color: var(--accent, #36d13c); }
 
     /* Desktop */
     #desktop { position: fixed; inset: 0 0 44px 0; overflow: hidden; }
@@ -156,10 +156,10 @@
     /* Tables */
     table { width: 100%; border-collapse: collapse; margin-top: 8px; }
     th, td { padding: 8px 6px; text-align: left; border-bottom: 1px solid #2b3039; }
-    th { color: #36d13c; font-size: 12px; }
+    th { color: var(--accent, #36d13c); font-size: 12px; }
     tr:hover { background: rgba(255,255,255,0.03); }
     .bar-outer { width: 100px; height: 8px; background: #2b3039; border-radius: 4px; overflow: hidden; }
-    .bar-inner { height: 100%; border-radius: 4px; background: #36d13c; }
+    .bar-inner { height: 100%; border-radius: 4px; background: var(--accent, #36d13c); }
 
     /* Buttons / inputs */
     input, button.std {
@@ -167,7 +167,7 @@
       color: #e0e6ed; padding: 8px 10px; border-radius: 5px;
       font-size: 13px;
     }
-    button.std { background: #36d13c; color: #000; border: none; cursor: pointer; }
+    button.std { background: var(--accent, #36d13c); color: #000; border: none; cursor: pointer; }
     button.std:hover { background: #4af05c; }
     .field { margin-bottom: 10px; }
     .field label { display: block; margin-bottom: 4px; font-size: 12px; color: #9aa3ad; }
@@ -196,7 +196,7 @@
 
     /* Breadcrumb */
     .breadcrumb { margin-bottom: 10px; color: #9aa3ad; }
-    .breadcrumb span { cursor: pointer; color: #36d13c; }
+    .breadcrumb span { cursor: pointer; color: var(--accent, #36d13c); }
 
     /* Scrollbar */
     ::-webkit-scrollbar { width: 8px; }
@@ -224,7 +224,7 @@
     /* Virtual keyboard */
     #virtual-keyboard {
       position: fixed; bottom: 0; left: 0; right: 0;
-      background: #0f1115; border-top: 1px solid #36d13c;
+      background: #0f1115; border-top: 1px solid var(--accent, #36d13c);
       flex-direction: column; align-items: center;
       padding: 10px 6px; gap: 5px; z-index: 99999;
       display: flex;
@@ -236,12 +236,12 @@
       border-radius: 5px; padding: 8px 10px; font-size: 13px; min-width: 30px;
       cursor: pointer; user-select: none;
     }
-    .kb-key:active { background: #36d13c; color: #050505; }
+    .kb-key:active { background: var(--accent, #36d13c); color: #050505; }
 
     /* Toasts */
     .toast {
       position: fixed; top: 14px; right: 14px; z-index: 100000;
-      background: #171a21; border: 1px solid #36d13c;
+      background: #171a21; border: 1px solid var(--accent, #36d13c);
       color: #e0e6ed; padding: 10px 16px; border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.5);
       transition: opacity 0.3s ease; max-width: 280px;
@@ -249,7 +249,7 @@
     .toast-error { border-color: #ff6b6b; color: #ff6b6b; }
 
     /* Active window glow */
-    .window.active { box-shadow: 0 0 0 1px #36d13c, 0 12px 40px rgba(54,209,60,0.18); }
+    .window.active { box-shadow: 0 0 0 1px var(--accent, #36d13c), 0 12px 40px rgba(54,209,60,0.18); }
     .window { touch-action: none; }
     .titlebar, .win-btns button, .kb-key, .menu-item, .task-icon, button.std { touch-action: manipulation; }
     html, body { overscroll-behavior: none; }
@@ -274,3 +274,30 @@
       .kb-row { gap: 4px; }
       .kb-key { padding: 11px 8px; font-size: 14px; min-width: 28px; }
     }
+
+    /* App icons in start menu */
+    .menu-icon { display: inline-block; width: 26px; text-align: center; margin-right: 10px; font-size: 16px; }
+    .task-icon-emoji { margin-right: 6px; }
+    .win-icon { margin-right: 8px; }
+
+    /* Window animations */
+    .window.opening { animation: winIn 0.18s ease-out; }
+    .window.closing { animation: winOut 0.15s ease-in; }
+    @keyframes winIn { from { opacity: 0; transform: scale(0.96) translateY(12px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+    @keyframes winOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.96); } }
+    .window.mobile .win-btns button { width: 44px; height: 44px; font-size: 20px; }
+    .window.mobile .titlebar { height: 44px; }
+
+    /* Branded login */
+    .login-logo { font-size: 56px; font-weight: 800; color: var(--accent, #36d13c); margin-bottom: 4px; text-align: center; letter-spacing: 4px; }
+    .login-sub { font-size: 13px; color: #9aa3ad; text-align: center; margin-bottom: 18px; }
+    #login-overlay { backdrop-filter: blur(10px); }
+
+    /* Context menu */
+    #ctx-menu { position: fixed; background: rgba(18,21,27,0.96); border: 1px solid #2b3039; border-radius: 8px; padding: 6px 0; min-width: 140px; z-index: 10000; display: none; }
+    .ctx-item { padding: 10px 16px; cursor: pointer; font-size: 13px; }
+    .ctx-item:hover { background: #2b3039; }
+
+    /* Accent color preview on login */
+    body { --accent: #36d13c; }
+

@@ -15,7 +15,8 @@
   <!-- Login -->
   <div id="login-overlay">
     <div class="login-box">
-      <h2>Icy OS Login</h2>
+      <div class="login-logo">Icy OS</div>
+      <div class="login-sub">Web OS v1.3.0</div>
       <input type="text" id="login-user" value="admin" disabled>
       <input type="password" id="login-pass" placeholder="admin password" value="admin">
       <button id="login-btn" class="std">Connect</button>
@@ -30,22 +31,22 @@
   <div id="start-menu">
     <input type="text" id="menu-search" placeholder="Search apps...">
     <div class="menu-sep">System</div>
-    <div class="menu-item" data-app="system">System Status</div>
-    <div class="menu-item" data-app="network">Network</div>
-    <div class="menu-item" data-app="settings">Settings</div>
+    <div class="menu-item" data-app="system"><span class="menu-icon">💻</span>System Status</div>
+    <div class="menu-item" data-app="network"><span class="menu-icon">📡</span>Network</div>
+    <div class="menu-item" data-app="settings"><span class="menu-icon">⚙️</span>Settings</div>
     <div class="menu-sep">Utilities</div>
-    <div class="menu-item" data-app="terminal">Terminal</div>
-    <div class="menu-item" data-app="files">File Manager</div>
-    <div class="menu-item" data-app="note">Notepad</div>
-    <div class="menu-item" data-app="calc">Calculator</div>
-    <div class="menu-item" data-app="clock">Clock</div>
-    <div class="menu-item" data-app="task">Task Manager</div>
-    <div class="menu-item" data-app="about">About</div>
+    <div class="menu-item" data-app="terminal"><span class="menu-icon">💲</span>Terminal</div>
+    <div class="menu-item" data-app="files"><span class="menu-icon">📁</span>File Manager</div>
+    <div class="menu-item" data-app="note"><span class="menu-icon">📝</span>Notepad</div>
+    <div class="menu-item" data-app="calc"><span class="menu-icon">🧮</span>Calculator</div>
+    <div class="menu-item" data-app="clock"><span class="menu-icon">🕐</span>Clock</div>
+    <div class="menu-item" data-app="task"><span class="menu-icon">📊</span>Task Manager</div>
+    <div class="menu-item" data-app="about"><span class="menu-icon">ℹ️</span>About</div>
     <div class="menu-sep">Wireless</div>
-    <div class="menu-item" data-app="wifi">Wi-Fi Scanner</div>
-    <div class="menu-item" data-app="attacks">Attacks</div>
-    <div class="menu-item" data-app="portal">Captive Portal</div>
-    <div class="menu-item" data-app="guide">Guide</div>
+    <div class="menu-item" data-app="wifi"><span class="menu-icon">📶</span>Wi-Fi Scanner</div>
+    <div class="menu-item" data-app="attacks"><span class="menu-icon">⚡</span>Attacks</div>
+    <div class="menu-item" data-app="portal"><span class="menu-icon">🚪</span>Captive Portal</div>
+    <div class="menu-item" data-app="guide"><span class="menu-icon">📖</span>Guide</div>
     <div class="menu-sep">Modules</div>
     <div id="modules-menu"></div>
   </div>
@@ -58,7 +59,9 @@
       <span id="sd-status">SD: --</span>
       <span id="heap-status">Heap: --</span>
       <span id="stations-status">Stations: 0</span>
-      <span id="clock">00:00</span>
+      <span id="sta-icon">📡</span>
+      <span id="net-status">NET: --</span>
+      <span id="clock">00:00:00</span>
     </div>
   </div>
 

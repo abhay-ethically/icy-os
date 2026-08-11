@@ -1,3 +1,4 @@
 [
-  { "id": "ping", "name": "Ping", "src": "ping.js", "w": 520, "h": 320 }
+  { "id": "ping", "name": "Ping", "src": "ping.js", "w": 520, "h": 320 },
+  { "id": "curlview", "name": "CurlView", "icon": "🌐", "src": "curlview.js", "w": 520, "h": 380 }
 ]
