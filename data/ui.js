@@ -135,7 +135,7 @@
 
     // --- Window manager ---
     let zTop = 100;
-    const winPos = { system: {x:60,y:40}, terminal: {x:90,y:70}, files: {x:120,y:100}, wifi: {x:150,y:130}, settings: {x:180,y:160}, attacks: {x:210,y:190}, portal: {x:260,y:220}, calc: {x:310,y:250}, note: {x:340,y:280}, guide: {x:370,y:310}, viewer: {x:400,y:340}, network: {x:430,y:370}, about: {x:460,y:400}, clock: {x:490,y:430}, task: {x:520,y:460}, game: {x:550,y:490}, snake: {x:580,y:520}, tictactoe: {x:610,y:550}, minesweeper: {x:640,y:580}, weather: {x:670,y:610}, browser: {x:700,y:640} };
+    const winPos = { system: {x:60,y:40}, terminal: {x:90,y:70}, files: {x:120,y:100}, wifi: {x:150,y:130}, settings: {x:180,y:160}, attacks: {x:210,y:190}, portal: {x:260,y:220}, calc: {x:310,y:250}, note: {x:340,y:280}, guide: {x:370,y:310}, viewer: {x:400,y:340}, network: {x:430,y:370}, about: {x:460,y:400}, clock: {x:490,y:430}, task: {x:520,y:460}, weather: {x:550,y:490}, browser: {x:580,y:520} };
     const apps = {
       system: { title: 'System Status', w: 360, h: 400, html: systemHTML() },
       terminal: { title: 'Terminal', w: 560, h: 380, html: terminalHTML() },
@@ -152,10 +152,6 @@
       about: { title: 'About Icy OS', w: 360, h: 380, html: aboutHTML() },
       clock: { title: 'Clock', w: 260, h: 120, html: clockHTML() },
       task: { title: 'Task Manager', w: 400, h: 320, html: taskHTML() },
-      game: { title: 'Pong', w: 520, h: 400, html: gameHTML() },
-      snake: { title: 'Snake', w: 360, h: 420, html: snakeHTML() },
-      tictactoe: { title: 'Tic-Tac-Toe', w: 320, h: 380, html: tictactoeHTML() },
-      minesweeper: { title: 'Minesweeper', w: 360, h: 480, html: minesweeperHTML() },
       weather: { title: 'Weather', w: 340, h: 240, html: weatherHTML() },
       browser: { title: 'Browser', w: 520, h: 420, html: browserHTML() }
     };
@@ -324,10 +320,7 @@
       if (app === 'about') initAbout(div);
       if (app === 'clock') initClock(div);
       if (app === 'task') initTask(div);
-      if (app === 'game') initGame(div);
-      if (app === 'snake') initSnake(div);
-      if (app === 'tictactoe') initTicTacToe(div);
-      if (app === 'minesweeper') initMinesweeper(div);
+
       if (app === 'weather') initWeather(div);
       if (app === 'browser') initBrowser(div);
     }
@@ -812,74 +805,25 @@
     }
     function initTask(div) { /* data comes from sysinfo */ }
 
-    function gameHTML() {
-      return `
-        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
-          <span>Score: <span id="game-score">0 - 0</span></span>
-          <button class="std" id="game-start">Start / Pause</button>
-          <span style="font-size:12px;color:#9aa3ad">Use ↑/↓ or W/S keys</span>
-        </div>
-        <canvas id="game-canvas" width="480" height="300" style="background:#0f1115;border:1px solid #36d13c;border-radius:6px;display:block;margin:0 auto"></canvas>
-      `;
-    }
-
-    function initGame(div) {
-      const canvas = div.querySelector('#game-canvas');
-      const ctx = canvas.getContext('2d');
-      const scoreEl = div.querySelector('#game-score');
-      let running = false, paused = false;
-      let ball = {x:240,y:150,dx:3,dy:2}, paddleH=60, pw=10;
-      let p1={y:120,score:0}, p2={y:120,score:0};
-      let keys={};
-      const loop = () => {
-        if (!running || paused) { draw(); if (running) requestAnimationFrame(loop); return; }
-        if (keys['w'] || keys['ArrowUp']) p1.y -= 6;
-        if (keys['s'] || keys['ArrowDown']) p1.y += 6;
-        p2.y += (ball.y - (p2.y + paddleH/2)) * 0.08;
-        p1.y = Math.max(0, Math.min(300 - paddleH, p1.y));
-        p2.y = Math.max(0, Math.min(300 - paddleH, p2.y));
-        ball.x += ball.dx; ball.y += ball.dy;
-        if (ball.y <= 0 || ball.y >= 300) ball.dy = -ball.dy;
-        let p = ball.dx < 0 ? p1 : p2;
-        let px = ball.dx < 0 ? 20 : 460 - pw;
-        if (ball.x >= px && ball.x <= px + pw && ball.y >= p.y && ball.y <= p.y + paddleH) {
-          ball.dx = -ball.dx * 1.05;
-          ball.dy += (Math.random() - 0.5) * 2;
-        }
-        if (ball.x < 0) { p2.score++; resetBall(); }
-        if (ball.x > 480) { p1.score++; resetBall(); }
-        scoreEl.textContent = p1.score + ' - ' + p2.score;
-        draw();
-        requestAnimationFrame(loop);
-      };
-      const resetBall = () => { ball = {x:240,y:150,dx:(Math.random()>0.5?3:-3)*(1+Math.random()*0.2),dy:(Math.random()-0.5)*4}; };
-      const draw = () => {
-        ctx.fillStyle = '#0f1115'; ctx.fillRect(0,0,480,300);
-        ctx.strokeStyle = '#36d13c'; ctx.beginPath(); ctx.moveTo(240,0); ctx.lineTo(240,300); ctx.stroke();
-        ctx.fillStyle = '#36d13c'; ctx.fillRect(20, p1.y, pw, paddleH); ctx.fillRect(460 - pw, p2.y, pw, paddleH);
-        ctx.fillRect(ball.x - 4, ball.y - 4, 8, 8);
-      };
-      resetBall(); draw();
-      div.querySelector('#game-start').addEventListener('click', () => {
-        if (!running) { running = true; paused = false; loop(); }
-        else { paused = !paused; if (!paused) loop(); }
-      });
-      window.addEventListener('keydown', e => { keys[e.key] = true; });
-      window.addEventListener('keyup', e => { keys[e.key] = false; });
-    }
-
     function renderNetworks(list) {
-      const tbody = document.getElementById('net-list');
-      if (!tbody) return;
-      tbody.innerHTML = '';
-      list.forEach(n => {
-        const tr = document.createElement('tr');
-        const ssidTd = document.createElement('td'); ssidTd.textContent = n.ssid || '(hidden)';
-        const rssiTd = document.createElement('td'); rssiTd.textContent = n.rssi + ' dBm';
-        const chTd = document.createElement('td'); chTd.textContent = n.channel;
-        const authTd = document.createElement('td'); authTd.textContent = n.auth;
-        tr.appendChild(ssidTd); tr.appendChild(rssiTd); tr.appendChild(chTd); tr.appendChild(authTd);
-        tbody.appendChild(tr);
+      const ids = ['net-list', 'wifi-list'];
+      ids.forEach(id => {
+        const tbody = document.getElementById(id);
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        list.forEach(n => {
+          const tr = document.createElement('tr');
+          const pct = Math.min(100, Math.max(0, (n.rssi + 90) * 100 / 60));
+          const color = n.rssi > -60 ? '#51cf66' : n.rssi > -75 ? '#ffd43b' : '#ff6b6b';
+          const ssidTd = document.createElement('td'); ssidTd.textContent = n.ssid || '<hidden>';
+          const rssiTd = document.createElement('td');
+          rssiTd.innerHTML = `<div class="bar-outer"><div class="bar-inner" style="width:${pct}%;background:${color}"></div></div>`;
+          rssiTd.appendChild(document.createTextNode(' ' + n.rssi));
+          const chTd = document.createElement('td'); chTd.textContent = n.channel;
+          const authTd = document.createElement('td'); authTd.textContent = n.auth;
+          tr.appendChild(ssidTd); tr.appendChild(rssiTd); tr.appendChild(chTd); tr.appendChild(authTd);
+          tbody.appendChild(tr);
+        });
       });
     }
 
@@ -1148,31 +1092,6 @@
       return (b/1048576).toFixed(1) + ' MB';
     }
 
-    function renderNetworks(list) {
-      const tbody = document.getElementById('wifi-list');
-      if (!tbody) return;
-      tbody.innerHTML = '';
-      list.forEach(n => {
-        const tr = document.createElement('tr');
-        const pct = Math.min(100, Math.max(0, (n.rssi + 90) * 100 / 60));
-        const color = n.rssi > -60 ? '#51cf66' : n.rssi > -75 ? '#ffd43b' : '#ff6b6b';
-        const ssidTd = document.createElement('td');
-        ssidTd.textContent = n.ssid || '<hidden>';
-        const rssiTd = document.createElement('td');
-        rssiTd.innerHTML = `<div class="bar-outer"><div class="bar-inner" style="width:${pct}%;background:${color}"></div></div>`;
-        rssiTd.appendChild(document.createTextNode(' ' + n.rssi));
-        const chTd = document.createElement('td');
-        chTd.textContent = n.channel;
-        const authTd = document.createElement('td');
-        authTd.textContent = n.auth;
-        tr.appendChild(ssidTd);
-        tr.appendChild(rssiTd);
-        tr.appendChild(chTd);
-        tr.appendChild(authTd);
-        tbody.appendChild(tr);
-      });
-    }
-
     function initWifi(div) {
       div.querySelector('#wifi-now').addEventListener('click', () => sendCmd('wifi scan'));
     }
@@ -1278,154 +1197,6 @@
       }
       activeInput.focus();
     }
-    // --- Snake ---
-    function snakeHTML() {
-      return `
-        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
-          <span>Score: <span id="snake-score">0</span></span>
-          <span id="snake-status" style="font-size:13px;color:#9aa3ad"></span>
-          <button class="std" id="snake-start">Start</button>
-          <span style="font-size:12px;color:#9aa3ad">Arrows or swipe</span>
-        </div>
-        <canvas id="snake-canvas" width="300" height="300" style="background:#0f1115;border:1px solid #36d13c;border-radius:6px;display:block;margin:0 auto"></canvas>
-      `;
-    }
-    function initSnake(div) {
-      const canvas = div.querySelector('#snake-canvas'), ctx = canvas.getContext('2d');
-      const scoreEl = div.querySelector('#snake-score'), status = div.querySelector('#snake-status');
-      let running = false, paused = false, s, food, dir, nextDir, score, timer;
-      const reset = () => { s = [{x:10,y:10}]; dir={x:1,y:0}; nextDir={x:1,y:0}; food={x:15,y:15}; score=0; scoreEl.textContent=0; status.textContent=''; draw(); };
-      const spawnFood = () => { do { food={x:Math.floor(Math.random()*15),y:Math.floor(Math.random()*15)}; } while (s.some(p=>p.x===food.x&&p.y===food.y)); };
-      const draw = () => {
-        ctx.fillStyle='#0f1115'; ctx.fillRect(0,0,300,300);
-        ctx.fillStyle='#36d13c'; s.forEach(p=>ctx.fillRect(p.x*20,p.y*20,18,18));
-        ctx.fillStyle='#ff6b6b'; ctx.fillRect(food.x*20,food.y*20,18,18);
-      };
-      const step = () => {
-        if (!running) return;
-        if (paused) { timer = setTimeout(step, 120); return; }
-        dir = nextDir;
-        const head = {x: s[0].x+dir.x, y: s[0].y+dir.y};
-        if (head.x<0||head.x>=15||head.y<0||head.y>=15 || s.some(p=>p.x===head.x&&p.y===head.y)) {
-          running=false; status.textContent='Game over!'; status.style.color='#ff6b6b'; clearTimeout(timer); return;
-        }
-        s.unshift(head);
-        if (head.x===food.x && head.y===food.y) { score+=10; scoreEl.textContent=score; spawnFood(); }
-        else s.pop();
-        draw();
-        timer = setTimeout(step, 120);
-      };
-      div.querySelector('#snake-start').addEventListener('click', () => {
-        if (!running) { running=true; paused=false; step(); }
-        else { paused=!paused; if (!paused) step(); }
-      });
-      window.addEventListener('keydown', e => { if (!running||paused) return; if (e.key==='ArrowUp'&&dir.y===0) nextDir={x:0,y:-1}; if (e.key==='ArrowDown'&&dir.y===0) nextDir={x:0,y:1}; if (e.key==='ArrowLeft'&&dir.x===0) nextDir={x:-1,y:0}; if (e.key==='ArrowRight'&&dir.x===0) nextDir={x:1,y:0}; });
-      let sx,sy;
-      canvas.addEventListener('touchstart', e => { const t=e.touches[0]; sx=t.clientX; sy=t.clientY; }, {passive:true});
-      canvas.addEventListener('touchend', e => { if (!running||paused) return; const t=e.changedTouches[0]; const dx=t.clientX-sx, dy=t.clientY-sy; if (Math.abs(dx)>Math.abs(dy)) { if (dx>20&&dir.x===0) nextDir={x:1,y:0}; if (dx<-20&&dir.x===0) nextDir={x:-1,y:0}; } else { if (dy>20&&dir.y===0) nextDir={x:0,y:1}; if (dy<-20&&dir.y===0) nextDir={x:0,y:-1}; } }, {passive:true});
-      reset();
-    }
-
-    // --- Tic-Tac-Toe ---
-    function tictactoeHTML() {
-      return `
-        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
-          <span id="ttt-status">Your turn (X)</span>
-          <button class="std" id="ttt-reset">Reset</button>
-        </div>
-        <div id="ttt-grid" style="display:grid;grid-template-columns:repeat(3,80px);gap:6px;justify-content:center"></div>
-      `;
-    }
-    function initTicTacToe(div) {
-      const grid = div.querySelector('#ttt-grid'), status = div.querySelector('#ttt-status');
-      let board = Array(9).fill(''), player='X', gameOver=false;
-      const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-      const check = (who) => wins.some(w=>w.every(i=>board[i]===who));
-      const ai = () => {
-        if (gameOver || player !== 'O') return;
-        const empty = board.map((v,i)=>v?-1:i).filter(i=>i!==-1);
-        const best = empty.find(i=>{ board[i]='O'; const w=check('O'); board[i]=''; return w; });
-        const block = empty.find(i=>{ board[i]='X'; const w=check('X'); board[i]=''; return w; });
-        const i = best!==undefined ? best : block!==undefined ? block : empty[Math.floor(Math.random()*empty.length)];
-        if (i!==undefined) {
-          board[i]='O';
-          if (check('O')) { status.textContent='O wins!'; status.style.color='#ff6b6b'; gameOver=true; }
-          else if (!board.includes('')) { status.textContent='Draw'; status.style.color='#9aa3ad'; gameOver=true; }
-          else { player='X'; status.textContent='Your turn (X)'; status.style.color='#e0e6ed'; }
-          render();
-        }
-      };
-      const render = () => {
-        grid.innerHTML='';
-        board.forEach((v,i)=>{
-          const b=document.createElement('button'); b.className='std'; b.style.width='80px'; b.style.height='80px'; b.style.fontSize='28px'; b.textContent=v;
-          b.addEventListener('click', () => {
-            if (v||gameOver||player!=='X') return;
-            board[i]='X';
-            if (check('X')) { status.textContent='You win!'; status.style.color='#36d13c'; gameOver=true; render(); return; }
-            if (!board.includes('')) { status.textContent='Draw'; status.style.color='#9aa3ad'; gameOver=true; render(); return; }
-            player='O'; status.textContent='Computer thinking...'; setTimeout(ai, 300);
-            render();
-          });
-          grid.appendChild(b);
-        });
-      };
-      div.querySelector('#ttt-reset').addEventListener('click', () => { board=Array(9).fill(''); player='X'; gameOver=false; status.textContent='Your turn (X)'; status.style.color='#e0e6ed'; render(); });
-      render();
-    }
-
-    // --- Minesweeper ---
-    function minesweeperHTML() {
-      return `
-        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
-          <span>Flags: <span id="ms-mines">10</span></span>
-          <span id="ms-status" style="font-size:13px"></span>
-          <button class="std" id="ms-reset">New</button>
-        </div>
-        <div id="ms-grid" style="display:grid;grid-template-columns:repeat(8,34px);gap:3px;justify-content:center"></div>
-      `;
-    }
-    function initMinesweeper(div) {
-      const grid = div.querySelector('#ms-grid'), status = div.querySelector('#ms-status'), minesEl = div.querySelector('#ms-mines');
-      const W=8, H=8, M=10; let cells=[], revealed=[], flagged=[], over=false;
-      const reset = () => {
-        cells=Array(H).fill(0).map(()=>Array(W).fill(0)); revealed=Array(H).fill(0).map(()=>Array(W).fill(false)); flagged=Array(H).fill(0).map(()=>Array(W).fill(false)); over=false; status.textContent=''; status.style.color='#e0e6ed';
-        let m=0; while (m<M) { const r=Math.floor(Math.random()*H), c=Math.floor(Math.random()*W); if (!cells[r][c]) { cells[r][c]=-1; m++; } }
-        for (let r=0;r<H;r++) for (let c=0;c<W;c++) if (cells[r][c]!==-1) {
-          let n=0; for (let dr=-1;dr<=1;dr++) for (let dc=-1;dc<=1;dc++) { const nr=r+dr,nc=c+dc; if (nr>=0&&nr<H&&nc>=0&&nc<W&&cells[nr][nc]===-1) n++; }
-          cells[r][c]=n;
-        }
-        minesEl.textContent=M; render();
-      };
-      const reveal = (r,c) => {
-        if (r<0||r>=H||c<0||c>=W||revealed[r][c]||flagged[r][c]) return;
-        revealed[r][c]=true;
-        if (cells[r][c]===-1) { over=true; status.textContent='Game over'; status.style.color='#ff6b6b'; return; }
-        if (cells[r][c]===0) for (let dr=-1;dr<=1;dr++) for (let dc=-1;dc<=1;dc++) reveal(r+dr,c+dc);
-      };
-      const checkWin = () => { for (let r=0;r<H;r++) for (let c=0;c<W;c++) if (cells[r][c]!==-1 && !revealed[r][c]) return false; return true; };
-      const render = () => {
-        grid.innerHTML='';
-        for (let r=0;r<H;r++) for (let c=0;c<W;c++) {
-          const b=document.createElement('button'); b.className='std'; b.style.width='34px'; b.style.height='34px'; b.style.fontSize='12px'; b.style.padding='0';
-          if (flagged[r][c]) { b.textContent='🚩'; b.style.background='#2b3039'; }
-          else if (revealed[r][c]) {
-            if (cells[r][c]===-1) { b.textContent='💣'; b.style.background='#ff6b6b'; }
-            else { b.textContent=cells[r][c]||''; b.style.background='#0f1115'; }
-          }
-          const doClick = () => { if (over||flagged[r][c]) return; if (flagged[r][c]) { flagged[r][c]=false; minesEl.textContent=+minesEl.textContent+1; render(); return; } reveal(r,c); if (!over && checkWin()) { over=true; status.textContent='You win!'; status.style.color='#36d13c'; } render(); };
-          b.addEventListener('click', doClick);
-          b.addEventListener('contextmenu', e => { e.preventDefault(); if (over||revealed[r][c]) return; flagged[r][c]=!flagged[r][c]; minesEl.textContent=flagged[r][c] ? +minesEl.textContent-1 : +minesEl.textContent+1; render(); });
-          let long;
-          b.addEventListener('touchstart', () => { long=setTimeout(() => { if (over||revealed[r][c]) return; flagged[r][c]=!flagged[r][c]; minesEl.textContent=flagged[r][c] ? +minesEl.textContent-1 : +minesEl.textContent+1; render(); }, 500); });
-          b.addEventListener('touchend', () => clearTimeout(long));
-          grid.appendChild(b);
-        }
-      };
-      div.querySelector('#ms-reset').addEventListener('click', reset);
-      reset();
-    }
-
     function initKeyboard() {
       const kb = document.createElement('div');
       kb.id = 'virtual-keyboard';

@@ -1,4 +1,4 @@
-const CACHE = 'icy-os-v4';
+const CACHE = 'icy-os-v5';
 const urlsToCache = ['/', '/index.html', '/style.css', '/ui.js', '/wallpaper.jpg', '/favicon.svg', '/manifest.json'];
 
 self.addEventListener('install', e => {
