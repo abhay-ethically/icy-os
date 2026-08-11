@@ -13,6 +13,7 @@
 #include <SD.h>
 #include <SPI.h>
 #include <ArduinoJson.h>
+#include "mbedtls/md5.h"
 #include <Update.h>
 #include <time.h>
 #include <vector>
@@ -473,7 +474,13 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
       "  resetui       delete old UI files; open /setup to reupload\n"
       "  reboot        restart the device\n"
       "  settings get  show current settings\n"
-      "  weather <city>  fetch current weather (requires STA internet)";
+      "  weather <city>  fetch current weather (requires STA internet)\n"
+      "  curl <url>      fetch URL (requires STA internet)\n"
+      "  nslookup <host> resolve a hostname\n"
+      "  ping <host>     resolve + TCP/80 probe\n"
+      "  md5sum <file>   compute MD5 hash\n"
+      "  hexdump <file>  hex dump first 512 bytes\n"
+      "  ps              FreeRTOS tasks and heap";
     sendJSON(c, term);
   }
   else if (cmd == "sysinfo") {
@@ -697,6 +704,107 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
       w["data"] = payload;
       sendJSON(c, w);
     }
+  }
+  else if (cmd.startsWith("curl ")) {
+    if (WiFi.status() != WL_CONNECTED) {
+      term["data"] = "No internet. Connect to a router in Settings first.";
+    } else {
+      String url = orig.substring(5);
+      url.trim();
+      HTTPClient http;
+      http.begin(url);
+      http.setTimeout(10000);
+      int code = http.GET();
+      String payload = (code == 200) ? http.getString().substring(0, 1200) : "HTTP " + String(code);
+      http.end();
+      term["data"] = payload;
+    }
+    sendJSON(c, term);
+  }
+  else if (cmd.startsWith("nslookup ")) {
+    String host = orig.substring(9);
+    host.trim();
+    IPAddress ip;
+    if (WiFi.hostByName(host.c_str(), ip)) term["data"] = host + " = " + ip.toString();
+    else term["data"] = "Could not resolve " + host;
+    sendJSON(c, term);
+  }
+  else if (cmd.startsWith("ping ")) {
+    String host = orig.substring(5);
+    host.trim();
+    if (host.length() == 0) { term["data"] = "Usage: ping <host>"; sendJSON(c, term); }
+    else if (WiFi.status() != WL_CONNECTED) { term["data"] = "No internet"; sendJSON(c, term); }
+    else {
+      WiFiClient cl;
+      IPAddress ip;
+      unsigned long t0 = millis();
+      bool resolved = WiFi.hostByName(host.c_str(), ip);
+      unsigned long t1 = millis();
+      if (!resolved) { term["data"] = host + " could not resolve"; sendJSON(c, term); }
+      else {
+        unsigned long t2 = millis();
+        bool open = cl.connect(ip, 80);
+        unsigned long t3 = millis();
+        cl.stop();
+        term["data"] = host + " resolved to " + ip.toString() + "\nDNS: " + String(t1 - t0) + " ms\nTCP/80: " + (open ? "open" : "closed/no reply") + " (" + String(t3 - t2) + " ms)";
+        sendJSON(c, term);
+      }
+    }
+  }
+  else if (cmd.startsWith("md5sum ")) {
+    String path = resolvePath(cmd.substring(7));
+    if (path.length() == 0 || !sdReady || !SD.exists(path)) {
+      term["data"] = "File not found";
+    } else {
+      File f = SD.open(path);
+      mbedtls_md5_context ctx;
+      mbedtls_md5_init(&ctx);
+      mbedtls_md5_starts_ret(&ctx);
+      uint8_t buf[512];
+      size_t n;
+      while ((n = f.read(buf, sizeof(buf))) > 0) mbedtls_md5_update_ret(&ctx, buf, n);
+      f.close();
+      uint8_t digest[16];
+      mbedtls_md5_finish_ret(&ctx, digest);
+      mbedtls_md5_free(&ctx);
+      String out = "";
+      for (int i = 0; i < 16; i++) {
+        if (digest[i] < 16) out += "0";
+        out += String(digest[i], HEX);
+      }
+      term["data"] = out + "  " + path;
+    }
+    sendJSON(c, term);
+  }
+  else if (cmd.startsWith("hexdump ")) {
+    String path = resolvePath(cmd.substring(8));
+    if (path.length() == 0 || !sdReady || !SD.exists(path)) {
+      term["data"] = "File not found";
+    } else {
+      File f = SD.open(path);
+      String out = "";
+      int lines = 0;
+      while (f.available() && lines < 32) {
+        uint8_t b[16];
+        int n = f.read(b, 16);
+        String hex = "", asc = "";
+        for (int i = 0; i < n; i++) {
+          if (b[i] < 16) hex += "0";
+          hex += String(b[i], HEX) + " ";
+          if (b[i] >= 32 && b[i] < 127) asc += (char)b[i];
+          else asc += ".";
+        }
+        out += "000000" + String(lines * 16, HEX) + "  " + hex + " |" + asc + "|\n";
+        lines++;
+      }
+      f.close();
+      term["data"] = out;
+    }
+    sendJSON(c, term);
+  }
+  else if (cmd == "ps") {
+    term["data"] = "FreeRTOS tasks: " + String(uxTaskGetNumberOfTasks()) + "\nHeap free: " + String(esp_get_free_heap_size()) + " bytes";
+    sendJSON(c, term);
   }
   else if (cmd.startsWith("mkdir ")) {
     String path = resolvePath(cmd.substring(6));
