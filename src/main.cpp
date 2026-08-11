@@ -996,7 +996,6 @@ String resolvePath(const String& in) {
   if (p.length() == 0) return currentDir;
   if (p == "/") return "/";
   if (p.indexOf("..") >= 0) return ""; // reject traversal
-  if (p.indexOf('\0') >= 0) return "";
   if (p[0] != '/') {
     if (currentDir == "/") p = "/" + p;
     else p = currentDir + "/" + p;

@@ -745,7 +745,7 @@
           <h2 style="color:#36d13c;margin:0">Icy OS</h2>
           <p style="font-size:12px;color:#9aa3ad">portable into microcontroller</p>
         </div>
-        <div class="meter"><label><span>Version</span><span id="about-ver">1.0.0</span></label></div>
+        <div class="meter"><label><span>Version</span><span id="about-ver">1.1.0</span></label></div>
         <div class="meter"><label><span>Uptime</span><span id="about-uptime">--</span></label></div>
         <div class="meter"><label><span>Free Heap</span><span id="about-heap">--</span></label></div>
         <div class="meter"><label><span>SD Total</span><span id="about-sd-total">--</span></label></div>
