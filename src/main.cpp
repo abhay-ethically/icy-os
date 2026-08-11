@@ -640,7 +640,33 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
   }
   else if (cmd.startsWith("attack ")) {
     updateAttackTargets();
-    term["data"] = wifiAttack.runCommand(cmd);
+    String attackCmd = cmd;
+    // Allow -f <file> on SD to load a list of SSIDs for beacon/probe/ssidspam
+    int fIdx = attackCmd.indexOf(" -f ");
+    if (fIdx >= 0) {
+      int fStart = fIdx + 4;
+      int fEnd = attackCmd.indexOf(' ', fStart);
+      if (fEnd < 0) fEnd = attackCmd.length();
+      String file = attackCmd.substring(fStart, fEnd);
+      file = resolvePath(file);
+      if (sdReady && file.length() > 0 && SD.exists(file)) {
+        File f = SD.open(file, FILE_READ);
+        if (f) {
+          String ssidList = "";
+          while (f.available() && ssidList.length() < 900) {
+            String line = f.readStringUntil('\n');
+            line.trim();
+            if (line.length()) {
+              if (ssidList.length()) ssidList += ",";
+              ssidList += line;
+            }
+          }
+          f.close();
+          attackCmd = attackCmd.substring(0, fIdx) + " -s " + ssidList + attackCmd.substring(fEnd);
+        }
+      }
+    }
+    term["data"] = wifiAttack.runCommand(attackCmd);
     sendJSON(c, term);
   }
   else if (cmd == "stopscan") {
