@@ -170,11 +170,13 @@ void loadSettings() {
     DeserializationError e = deserializeJson(doc, f);
     f.close();
     if (!e) {
-      apSSID      = sanitize(doc["ssid"]       | apSSID);
+      apSSID      = "Icy-OS";                    // keep the brand consistent
       apPassword  = sanitize(doc["password"]   | apPassword);
       adminPass   = sanitize(doc["adminPass"]  | adminPass);
       buzzerPin   = doc["buzzerGPIO"] | buzzerPin;
       apChannel   = doc["channel"]     | apChannel;
+      if (apChannel < 1 || apChannel > 13) apChannel = 1;
+      if (apPassword.length() < 8) apPassword = "Password123";
       staSSID     = sanitize(doc["staSSID"]    | staSSID);
       staPassword = sanitize(doc["staPassword"] | staPassword);
       ntpServer   = sanitize(doc["ntpServer"]  | ntpServer);
@@ -1375,9 +1377,10 @@ String shellCommand(const String& raw) {
 // --- AP restore helper ---
 void restoreAP() {
   if (apSSID.length() == 0) apSSID = "Icy-OS";
+  if (apPassword.length() < 8) apPassword = "Password123";
+  if (apChannel < 1 || apChannel > 13) apChannel = 1;
   wifi_mode_t target = (staSSID.length() > 0 && WiFi.status() == WL_CONNECTED) ? WIFI_AP_STA : WIFI_AP;
   if (WiFi.getMode() != target) WiFi.mode(target);
-  esp_wifi_set_channel(apChannel, WIFI_SECOND_CHAN_NONE);
   if (WiFi.softAPIP() != localIP) WiFi.softAPConfig(localIP, gateway, subnet);
   WiFi.softAP(apSSID.c_str(), apPassword.c_str(), apChannel, 0, 4);
 }
@@ -1663,6 +1666,7 @@ void setup() {
   } else {
     Serial.println("SD card ready");
     loadSettings();
+    saveSettings();       // write sanitized/validated settings back to SD
     // Re-apply loaded settings
     restoreAP();
     connectSTA();
