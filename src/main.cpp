@@ -969,6 +969,23 @@ String resolvePath(const String& in) {
   return p;
 }
 
+// --- File copy helper ---
+bool copyFile(const String& src, const String& dst) {
+  if (!sdReady) return false;
+  File in = SD.open(src, FILE_READ);
+  if (!in) return false;
+  File out = SD.open(dst, FILE_WRITE);
+  if (!out) { in.close(); return false; }
+  uint8_t buf[256];
+  while (in.available()) {
+    size_t r = in.read(buf, sizeof(buf));
+    out.write(buf, r);
+    yield();
+  }
+  in.close(); out.close();
+  return true;
+}
+
 // --- Shell-like command processor ---
 
 String shellCommand(const String& raw) {
@@ -1026,6 +1043,39 @@ String shellCommand(const String& raw) {
   // free
   if (s == "free") {
     return "total: " + String(initialHeap / 1024) + " KB\nfree:  " + String(ESP.getFreeHeap() / 1024) + " KB\nused:  " + String((initialHeap - ESP.getFreeHeap()) / 1024) + " KB";
+  }
+
+  // backup
+  if (s == "backup") {
+    if (!sdReady) return "SD not ready";
+    if (!SD.exists("/backup")) SD.mkdir("/backup");
+    String ts = String(millis());
+    bool ok1 = copyFile("/settings.json", "/backup/" + ts + "_settings.json");
+    bool ok2 = copyFile("/wallpaper.jpg", "/backup/" + ts + "_wallpaper.jpg");
+    return (ok1 ? "settings" : "no settings") + String(" and ") + (ok2 ? "wallpaper" : "no wallpaper") + " backed up";
+  }
+
+  // restore
+  if (s == "restore") {
+    if (!sdReady) return "SD not ready";
+    File root = SD.open("/backup");
+    if (!root || !root.isDirectory()) { if (root) root.close(); return "No /backup folder"; }
+    String latestSettings, latestWallpaper;
+    File f = root.openNextFile();
+    while (f) {
+      String n = f.name();
+      if (n.endsWith("_settings.json")) latestSettings = "/backup/" + n;
+      if (n.endsWith("_wallpaper.jpg")) latestWallpaper = "/backup/" + n;
+      f = root.openNextFile();
+    }
+    root.close();
+    String out;
+    if (latestSettings.length() && copyFile(latestSettings, "/settings.json")) out += "settings restored ";
+    if (latestWallpaper.length() && copyFile(latestWallpaper, "/wallpaper.jpg")) out += "wallpaper restored ";
+    if (out.length() == 0) return "No backups found";
+    loadSettings();
+    restoreAP();
+    return out + "- reboot to apply AP settings";
   }
 
   // uptime
@@ -1110,6 +1160,7 @@ String shellCommand(const String& raw) {
     if (sp > 0 && rest.substring(0, sp) == "-n") {
       n = rest.substring(sp + 1).toInt();
       int sp2 = rest.indexOf(' ', sp + 1);
+      if (sp2 <= 0) return "Usage: head -n <num> <path>";
       p = rest.substring(sp2 + 1);
     }
     p = resolvePath(p);
@@ -1139,6 +1190,7 @@ String shellCommand(const String& raw) {
     if (sp > 0 && rest.substring(0, sp) == "-n") {
       n = rest.substring(sp + 1).toInt();
       int sp2 = rest.indexOf(' ', sp + 1);
+      if (sp2 <= 0) return "Usage: tail -n <num> <path>";
       p = rest.substring(sp2 + 1);
     }
     p = resolvePath(p);
@@ -1306,6 +1358,7 @@ String shellCommand(const String& raw) {
            "  cd, pwd, ls, cat, head, tail, wc, find, grep, file\n"
            "  cp, mv, rm, mkdir, rmdir, touch\n"
            "  df, du, free, uptime, whoami, hostname, ifconfig, iw\n"
+           "  backup, restore   backup/restore settings and wallpaper\n"
            "  neofetch, ps, env, echo, clear, history\n"
            "  help [cmd], man [cmd]\n"
            "Use 'help <command>' for details.";
@@ -1940,7 +1993,7 @@ void setup() {
     uint8_t mac[6];
     String macStr = "00:00:00:00:00:00";
     if (sdReady && request->hasHeader("User-Agent")) {
-      // logging for user agent only; no credentials
+      // user agent could be logged if desired
     }
     if (WiFi.softAPgetStationNum() > 0) {
       // Best effort: get MAC of the requestor not available in AsyncWebServer; use client IP
@@ -1949,8 +2002,17 @@ void setup() {
     if (sdReady) {
       File log = SD.open("/portal_log.csv", FILE_APPEND);
       if (log) {
-        if (log.size() == 0) log.println("ts,ip");
-        log.println(String((millis() - bootMs) / 1000) + "," + ip.toString());
+        if (log.size() == 0) log.println("ts,ip,params");
+        String line = String((millis() - bootMs) / 1000) + "," + ip.toString() + ",";
+        int n = request->params();
+        for (int i = 0; i < n; i++) {
+          AsyncWebParameter* pp = request->getParam(i);
+          if (pp) {
+            if (i > 0) line += ";";
+            line += sanitize(pp->name()) + "=" + sanitize(pp->value());
+          }
+        }
+        log.println(line);
         log.close();
       }
     }
