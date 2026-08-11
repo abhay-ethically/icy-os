@@ -5,6 +5,7 @@ Run this from the project root while connected to the Icy-OS AP.
 """
 import os
 import sys
+import time
 import http.client
 import mimetypes
 from pathlib import Path
@@ -23,6 +24,31 @@ FILES = [
     "favicon.svg",
     "wallpaper.jpg",
 ]
+
+
+def sd_ready():
+    """Check if the SD card is mounted by reading the root folder."""
+    conn = http.client.HTTPConnection(HOST, PORT, timeout=10)
+    try:
+        conn.request("GET", f"/files?token={TOKEN}&path=/")
+        resp = conn.getresponse()
+        text = resp.read().decode("utf-8", errors="replace")
+        return resp.status != 503
+    except Exception:
+        return False
+    finally:
+        conn.close()
+
+
+def wait_for_sd(timeout=120):
+    print("Waiting for SD card to be ready...")
+    start = time.time()
+    while time.time() - start < timeout:
+        if sd_ready():
+            print("SD card is ready.")
+            return True
+        time.sleep(2)
+    return False
 
 
 def multipart_body(filename, data):
@@ -62,6 +88,10 @@ def upload_one(filename, data):
 def main():
     if not DATA_DIR.is_dir():
         print(f"data directory not found at {DATA_DIR}", file=sys.stderr)
+        sys.exit(1)
+
+    if not wait_for_sd(120):
+        print("SD card is not ready. Make sure the card is inserted and reboot the ESP32.", file=sys.stderr)
         sys.exit(1)
 
     failed = False

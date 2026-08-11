@@ -492,7 +492,6 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
       "  resetui       delete old UI files; open /setup to reupload\n"
       "  reboot        restart the device\n"
       "  settings get  show current settings\n"
-      "  weather <city>  fetch current weather (requires STA internet)\n"
       "  curl <url>      fetch URL (requires STA internet)\n"
       "  nslookup <host> resolve a hostname\n"
       "  ping <host>     resolve + TCP/80 probe\n"
@@ -756,33 +755,6 @@ void processCmd(AsyncWebSocketClient* c, const String& raw) {
     d["staIP"]       = (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString() : "";
     d["staStatus"]   = (WiFi.status() == WL_CONNECTED) ? "connected" : "disconnected";
     sendJSON(c, s);
-  }
-  else if (cmd.startsWith("weather ")) {
-    String city = orig.substring(8);
-    city.trim();
-    if (WiFi.status() != WL_CONNECTED) {
-      term["data"] = "No internet. Connect to a router in Settings first.";
-      sendJSON(c, term);
-    } else if (city.length() == 0) {
-      term["data"] = "Usage: weather <city>";
-      sendJSON(c, term);
-    } else {
-      String url = "http://wttr.in/" + city + "?format=3";
-      HTTPClient http;
-      http.begin(url);
-      http.setTimeout(10000);
-      int code = http.GET();
-      String payload;
-      if (code == 200) payload = http.getString();
-      else payload = "Weather fetch failed (" + String(code) + ")";
-      http.end();
-      term["data"] = "Weather: " + payload;
-      sendJSON(c, term);
-      DynamicJsonDocument w(512);
-      w["type"] = "weather";
-      w["data"] = payload;
-      sendJSON(c, w);
-    }
   }
   else if (cmd.startsWith("curl ")) {
     if (WiFi.status() != WL_CONNECTED) {
@@ -1769,6 +1741,103 @@ void onWsEvent(AsyncWebSocket* server, AsyncWebSocketClient* client,
   }
 }
 
+// --- SD card init / re-init ---
+static bool spiStarted = false;
+void initSD() {
+  if (sdReady) return;
+  disableLoopWDT();
+  if (!spiStarted) {
+    pinMode(SD_CS, OUTPUT);
+    digitalWrite(SD_CS, HIGH);
+    SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
+    spiStarted = true;
+    delay(100);
+  }
+  for (int attempt = 0; attempt < 8; attempt++) {
+    SD.end();
+    delay(20);
+    sdReady = SD.begin(SD_CS, SPI, 1000000);
+    if (sdReady) break;
+    Serial.println("SD retry " + String(attempt + 1));
+    delay(500);
+    yield();
+  }
+  enableLoopWDT();
+  if (sdReady) {
+    Serial.println("SD card ready");
+    loadSettings();
+    saveSettings();
+    restoreAP();
+    connectSTA();
+    configTime(ntpOffset * 3600L, 0, ntpServer.c_str());
+  }
+}
+
+// --- Serial file upload from the same USB cable ---
+void handleSerialUpload() {
+  static String line;
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c == '\n') {
+      line.trim();
+      if (line.startsWith("__ICY_UPLOAD__ ")) {
+        // Format: __ICY_UPLOAD__ <size> <path>
+        int s1 = line.indexOf(' ');
+        int s2 = line.indexOf(' ', s1 + 1);
+        if (s1 > 0 && s2 > s1) {
+          String sizeStr = line.substring(s1 + 1, s2);
+          String path = line.substring(s2 + 1);
+          long fsize = sizeStr.toInt();
+          if (path.startsWith("/")) path = path.substring(1);
+          if (fsize > 0 && fsize < 4194304L && path.indexOf("..") < 0) {
+            if (!sdReady) {
+              Serial.println("FAIL " + path + " SD not ready");
+            } else {
+              String target = "/" + path;
+              File f = SD.open(target, FILE_WRITE);
+              if (f) {
+                Serial.println("READY " + path);
+                Serial.setTimeout(30000);
+                uint8_t buf[512];
+                long remaining = fsize;
+                bool ok = true;
+                disableLoopWDT();
+                while (remaining > 0) {
+                  size_t toRead = (remaining > (long)sizeof(buf)) ? sizeof(buf) : (size_t)remaining;
+                  size_t got = Serial.readBytes(buf, toRead);
+                  if (got == 0) { ok = false; break; }
+                  if (f.write(buf, got) != got) { ok = false; break; }
+                  remaining -= got;
+                  yield();
+                }
+                enableLoopWDT();
+                f.close();
+                if (ok) Serial.println("OK " + path);
+                else     Serial.println("FAIL " + path + " write/timeout");
+              } else {
+                Serial.println("FAIL " + path + " cannot open");
+              }
+            }
+          } else {
+            Serial.println("FAIL bad request");
+          }
+        } else {
+          Serial.println("FAIL bad request");
+        }
+      } else if (line.startsWith("__ICY_LISTSD__")) {
+        Serial.println(sdReady ? "SD ready" : "SD not ready");
+      } else if (line.startsWith("__ICY_INITSD__")) {
+        initSD();
+      } else if (line.length() > 0) {
+        // ignore unknown serial lines (could be noise)
+      }
+      line = "";
+    } else if (c != '\r') {
+      line += c;
+    }
+  }
+}
+
 // --- Setup ---
 void setup() {
   Serial.begin(115200);
@@ -1792,27 +1861,8 @@ void setup() {
   Serial.println(WiFi.softAPIP());
 
   // SD card on VSPI
-  disableLoopWDT();                     // allow SD.begin extra time without watchdog reboot
-  SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
-  for (int attempt = 0; attempt < 5; attempt++) {
-    sdReady = SD.begin(SD_CS, SPI, 1000000);  // 1 MHz for better card compatibility
-    if (sdReady) break;
-    Serial.println("SD retry " + String(attempt + 1));
-    delay(500);
-    yield();
-  }
-  enableLoopWDT();
-  if (!sdReady) {
-    Serial.println("SD card init failed");
-  } else {
-    Serial.println("SD card ready");
-    loadSettings();
-    saveSettings();       // write sanitized/validated settings back to SD
-    // Re-apply loaded settings
-    restoreAP();
-    connectSTA();
-    configTime(ntpOffset * 3600L, 0, ntpServer.c_str());
-  }
+  initSD();
+  if (!sdReady) Serial.println("SD card init failed");
 
   // Root handler: serve portal (if active), index.html, or the setup page
   const char* setupHtml = R"ICYUPLOAD(
@@ -2259,6 +2309,8 @@ void setup() {
 
   server.begin();
 
+  Serial.println("__ICY_OS_READY__");
+
   initialHeap = ESP.getFreeHeap();
   bootMs = millis();
 
@@ -2268,6 +2320,16 @@ void setup() {
 
 // --- Main loop ---
 void loop() {
+  // Serial cable file upload (one command does firmware + SD)
+  handleSerialUpload();
+
+  // Heartbeat marker so one-command installers can see the device is alive
+  static unsigned long lastReadyMarker = 0;
+  if (millis() - lastReadyMarker > 5000) {
+    Serial.println("__ICY_OS_READY__");
+    lastReadyMarker = millis();
+  }
+
   // Clean up closed sockets
   static unsigned long lastClean = 0;
   if (millis() - lastClean > 5000) {
@@ -2305,6 +2367,13 @@ void loop() {
   // Sniffer auto-stop
   if (sniffing && millis() - sniffStart > sniffDuration) {
     stopSniff();
+  }
+
+  // Try to re-init the SD card every 10 s if it failed at boot
+  static unsigned long lastSDTry = 0;
+  if (!sdReady && millis() - lastSDTry > 10000) {
+    lastSDTry = millis();
+    initSD();
   }
 
   delay(10);

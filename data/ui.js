@@ -76,7 +76,7 @@
         case 'files': renderFiles(msg.data, msg.path); break;
         case 'networks': renderNetworks(msg.data); break;
         case 'settings': fillSettings(msg.data); adminToken = msg.data.adminPass || adminToken; break;
-        case 'weather': if (window.weatherResult) window.weatherResult(msg.data); break;
+
         case 'error':
           appendTerminal('Error: ' + (msg.data || 'unknown'), false);
           break;
@@ -135,7 +135,7 @@
 
     // --- Window manager ---
     let zTop = 100;
-    const winPos = { system: {x:60,y:40}, terminal: {x:90,y:70}, files: {x:120,y:100}, wifi: {x:150,y:130}, settings: {x:180,y:160}, attacks: {x:210,y:190}, portal: {x:260,y:220}, calc: {x:310,y:250}, note: {x:340,y:280}, guide: {x:370,y:310}, viewer: {x:400,y:340}, network: {x:430,y:370}, about: {x:460,y:400}, clock: {x:490,y:430}, task: {x:520,y:460}, weather: {x:550,y:490}, browser: {x:580,y:520} };
+    const winPos = { system: {x:60,y:40}, terminal: {x:90,y:70}, files: {x:120,y:100}, wifi: {x:150,y:130}, settings: {x:180,y:160}, attacks: {x:210,y:190}, portal: {x:260,y:220}, calc: {x:310,y:250}, note: {x:340,y:280}, guide: {x:370,y:310}, viewer: {x:400,y:340}, network: {x:430,y:370}, about: {x:460,y:400}, clock: {x:490,y:430}, task: {x:520,y:460} };
     const apps = {
       system: { title: 'System Status', w: 360, h: 400, html: systemHTML() },
       terminal: { title: 'Terminal', w: 560, h: 380, html: terminalHTML() },
@@ -151,9 +151,7 @@
       network: { title: 'Network', w: 460, h: 420, html: networkHTML() },
       about: { title: 'About Icy OS', w: 360, h: 380, html: aboutHTML() },
       clock: { title: 'Clock', w: 260, h: 120, html: clockHTML() },
-      task: { title: 'Task Manager', w: 400, h: 320, html: taskHTML() },
-      weather: { title: 'Weather', w: 340, h: 240, html: weatherHTML() },
-      browser: { title: 'Browser', w: 520, h: 420, html: browserHTML() }
+      task: { title: 'Task Manager', w: 400, h: 320, html: taskHTML() }
     };
     const openWins = {};
 
@@ -320,9 +318,6 @@
       if (app === 'about') initAbout(div);
       if (app === 'clock') initClock(div);
       if (app === 'task') initTask(div);
-
-      if (app === 'weather') initWeather(div);
-      if (app === 'browser') initBrowser(div);
     }
 
     // --- App HTML ---
@@ -599,47 +594,6 @@
         const out = v * f / t;
         res.textContent = v + ' ' + from.value + ' = ' + (out < 0.001 ? out.toExponential(3) : parseFloat(out.toPrecision(6))) + ' ' + to.value;
       };
-    }
-
-    function weatherHTML() {
-      return `
-        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
-          <input id="weather-city" value="Mumbai" style="flex:1;background:#0f1115;border:1px solid #2b3039;color:#e0e6ed;padding:6px;border-radius:5px">
-          <button class="std" id="weather-go">Check</button>
-        </div>
-        <div id="weather-out" style="white-space:pre-wrap;font-family:monospace;font-size:13px;color:#e0e6ed;min-height:60px;background:#0f1115;border:1px solid #2b3039;padding:10px;border-radius:6px">Requires STA internet. Enter a city and press Check.</div>
-      `;
-    }
-    function initWeather(div) {
-      const out = div.querySelector('#weather-out');
-      const go = div.querySelector('#weather-go');
-      const city = div.querySelector('#weather-city');
-      go.addEventListener('click', () => { out.textContent = 'Fetching...'; sendCmd('weather ' + city.value.trim()); });
-      window.weatherResult = (text) => { out.textContent = text; };
-    }
-
-    function browserHTML() {
-      return `
-        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
-          <input id="browser-url" value="http://example.com" style="flex:1;background:#0f1115;border:1px solid #2b3039;color:#e0e6ed;padding:6px;border-radius:5px">
-          <button class="std" id="browser-go">Go</button>
-        </div>
-        <div id="browser-status" style="font-size:12px;color:#9aa3ad;margin-bottom:6px">Requires STA internet. Only text is shown.</div>
-        <textarea id="browser-out" style="flex:1;width:100%;background:#0f1115;color:#e0e6ed;border:1px solid #2b3039;padding:8px;border-radius:6px;font-family:monospace;resize:none" readonly></textarea>
-      `;
-    }
-    function initBrowser(div) {
-      const out = div.querySelector('#browser-out');
-      const status = div.querySelector('#browser-status');
-      const url = div.querySelector('#browser-url');
-      div.querySelector('#browser-go').addEventListener('click', () => {
-        let u = url.value.trim();
-        if (!u.startsWith('http')) u = 'http://' + u;
-        out.value = 'Fetching...';
-        status.textContent = 'Loading ' + u;
-        window._curlCallback = (text) => { out.value = text; status.textContent = 'Done'; };
-        sendCmd('curl ' + u);
-      });
     }
 
     function initNote(div) {
