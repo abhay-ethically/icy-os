@@ -1822,17 +1822,19 @@ void handleSerialUpload() {
               File f = SD.open(target, FILE_WRITE);
               if (f) {
                 Serial.println("READY " + path);
-                Serial.setTimeout(30000);
-                uint8_t buf[512];
+                Serial.setTimeout(5000);
+                uint8_t buf[64];
                 long remaining = fsize;
                 bool ok = true;
+                uint32_t start = millis();
                 disableLoopWDT();
                 while (remaining > 0) {
-                  size_t toRead = (remaining > (long)sizeof(buf)) ? sizeof(buf) : (size_t)remaining;
+                  size_t toRead = (remaining > 64) ? 64 : (size_t)remaining;
                   size_t got = Serial.readBytes(buf, toRead);
                   if (got == 0) { ok = false; break; }
                   if (f.write(buf, got) != got) { ok = false; break; }
                   remaining -= got;
+                  if (millis() - start > 120000) { ok = false; break; }  // 2 min absolute cap
                   yield();
                 }
                 enableLoopWDT();

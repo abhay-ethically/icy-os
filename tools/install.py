@@ -147,6 +147,7 @@ def main():
             if not ok:
                 print(f"[{remote}] FAILED: {msg}")
                 failed.append(remote)
+                break
             else:
                 print(f"[{remote}] OK")
 
