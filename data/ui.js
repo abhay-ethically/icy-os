@@ -87,8 +87,12 @@
           appendTerminal(msg.data, false);
           if (window._curlCallback) { window._curlCallback(msg.data); delete window._curlCallback; }
           if (window._pingCb) { window._pingCb(msg.data); delete window._pingCb; }
+          if (window._snifferCb) { window._snifferCb(msg.data); delete window._snifferCb; }
           break;
-        case 'files': renderFiles(msg.data, msg.path); break;
+        case 'files':
+          if (window._filesCb) { window._filesCb(msg); delete window._filesCb; }
+          renderFiles(msg.data, msg.path);
+          break;
         case 'networks': renderNetworks(msg.data); break;
         case 'settings': fillSettings(msg.data); adminToken = msg.data.adminPass || adminToken; break;
 

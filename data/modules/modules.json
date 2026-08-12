@@ -1,4 +1,5 @@
 [
-  { "id": "ping", "name": "Ping", "src": "ping.js", "w": 520, "h": 320 },
-  { "id": "curlview", "name": "CurlView", "icon": "🌐", "src": "curlview.js", "w": 520, "h": 380 }
+  { "id": "ping", "name": "Ping", "icon": "🛜", "src": "ping.js", "w": 520, "h": 320 },
+  { "id": "curlview", "name": "CurlView", "icon": "🌐", "src": "curlview.js", "w": 520, "h": 380 },
+  { "id": "sniffer", "name": "Sniffer", "icon": "🦈", "src": "sniffer.js", "w": 520, "h": 420 }
 ]
