@@ -119,7 +119,7 @@ def main():
 
     if not args.no_flash:
         print("[1/3] Flashing firmware...")
-        r = subprocess.run(["pio", "run", "-t", "upload", "-d", PROJECT_DIR], check=False)
+        r = subprocess.run(["pio", "run", "-t", "upload", "-d", PROJECT_DIR, "--upload-port", args.port], check=False)
         if r.returncode != 0:
             print("Firmware flash failed.")
             sys.exit(1)

@@ -1478,13 +1478,14 @@ void connectSTA() {
   if (WiFi.status() == WL_CONNECTED && WiFi.SSID() == staSSID) { restoreAP(); staConnectStart = 0; return; }
   if (WiFi.getMode() != WIFI_AP_STA) WiFi.mode(WIFI_AP_STA);
   WiFi.setSleep(false);
-  WiFi.disconnect(true);
+  WiFi.disconnect(false);
   delay(100);
   WiFi.setAutoConnect(false);
   WiFi.setAutoReconnect(false);
   Serial.println("[ICY] STA connecting to " + staSSID);
   WiFi.begin(staSSID.c_str(), staPassword.c_str());
   staConnectStart = millis();
+  sendSysInfo();
 }
 
 String staStatusString() {
@@ -2397,12 +2398,15 @@ void loop() {
   if (staConnectStart > 0) {
     if (WiFi.status() == WL_CONNECTED) {
       staConnectStart = 0;
+      Serial.println("[ICY] STA connected: " + WiFi.localIP().toString());
+      sendSysInfo();
       restoreAP();
     } else if (millis() - staConnectStart > 30000) {
-      WiFi.disconnect();
+      WiFi.disconnect(false);
       restoreAP();
       staConnectStart = 0;
-      Serial.println("STA connect timeout, keeping AP only");
+      Serial.println("[ICY] STA connect timeout, keeping AP only");
+      sendSysInfo();
     }
   }
 

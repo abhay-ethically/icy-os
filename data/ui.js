@@ -312,8 +312,13 @@
 
     function initWindowBehavior(div, app) {
       const title = div.querySelector('.titlebar');
+      const isMobile = window.matchMedia('(max-width: 768px)').matches;
       let dragging = false, ox = 0, oy = 0, sx = 0, sy = 0;
       const desktop = document.getElementById('desktop');
+      if (isMobile) {
+        title.style.cursor = 'default';
+        return;
+      }
 
       function getClient(e) { return e.touches ? e.touches[0] : e; }
       function clamp() {
@@ -441,7 +446,7 @@
         </div>
         <div class="meter" style="margin-bottom:10px"><label><span>SD Used</span><span id="files-sd-pct">0%</span></label><div class="bar-outer"><div id="files-sd-bar" class="bar-inner" style="width:0%"></div></div></div>
         <div class="breadcrumb" id="files-bc">/ <span>/</span></div>
-        <table><thead><tr><th>Name</th><th>Type</th><th>Size</th><th>Actions</th></tr></thead><tbody id="files-list"></tbody></table>
+        <div class="table-wrap"><table><thead><tr><th>Name</th><th>Type</th><th>Size</th><th>Actions</th></tr></thead><tbody id="files-list"></tbody></table></div>
       `;
     }
 
@@ -451,7 +456,7 @@
           <span style="font-weight:bold">Nearby Networks (auto-refresh)</span>
           <button class="std" id="wifi-now">Scan now</button>
         </div>
-        <table><thead><tr><th>SSID</th><th>RSSI</th><th>Channel</th><th>Auth</th></tr></thead><tbody id="wifi-list"></tbody></table>
+        <div class="table-wrap"><table><thead><tr><th>SSID</th><th>RSSI</th><th>Channel</th><th>Auth</th></tr></thead><tbody id="wifi-list"></tbody></table></div>
       `;
     }
 
@@ -788,12 +793,12 @@
           <button class="std" id="net-forget" style="background:#2b3039;color:#e0e6ed">Forget</button>
         </div>
         <div id="net-info" style="font-size:13px;margin-bottom:10px"></div>
-        <table id="net-table"><thead><tr><th>SSID</th><th>RSSI</th><th>Ch</th><th>Auth</th><th>Action</th></tr></thead><tbody id="net-list"></tbody></table>
+        <div class="table-wrap"><table id="net-table"><thead><tr><th>SSID</th><th>RSSI</th><th>Ch</th><th>Auth</th><th>Action</th></tr></thead><tbody id="net-list"></tbody></table></div>
         <div id="net-sta" style="font-size:13px;margin-top:10px;color:#9aa3ad">Saved STA: --</div>
         <div id="net-modal" style="display:none;position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:10000;align-items:center;justify-content:center">
           <div style="background:#171a21;border:1px solid #2b3039;border-radius:10px;padding:20px;width:320px;box-shadow:0 10px 40px rgba(0,0,0,0.5)">
             <h4 style="margin-bottom:10px">Connect to <span id="net-conn-ssid"></span></h4>
-            <input type="password" id="net-conn-pass" placeholder="Wi-Fi password" style="width:100%;background:#0f1115;border:1px solid #2b3039;color:#e0e6ed;padding:10px;border-radius:6px;margin-bottom:12px">
+            <input type="password" id="net-conn-pass" placeholder="Wi-Fi password" autocapitalize="off" autocorrect="off" style="width:100%;background:#0f1115;border:1px solid #2b3039;color:#e0e6ed;padding:10px;border-radius:6px;margin-bottom:12px">
             <div style="display:flex;gap:8px">
               <button class="std" id="net-conn-go" style="flex:1;background:#36d13c;color:#000">Connect</button>
               <button class="std" id="net-conn-cancel" style="flex:1;background:#2b3039;color:#e0e6ed">Cancel</button>
@@ -809,7 +814,7 @@
           <h2 style="color:#36d13c;margin:0">Icy OS</h2>
           <p style="font-size:12px;color:#9aa3ad">portable into microcontroller</p>
         </div>
-        <div class="meter"><label><span>Version</span><span id="about-ver">1.3.0</span></label></div>
+        <div class="meter"><label><span>Version</span><span id="about-ver">1.3.1</span></label></div>
         <div class="meter"><label><span>Uptime</span><span id="about-uptime">--</span></label></div>
         <div class="meter"><label><span>Free Heap</span><span id="about-heap">--</span></label></div>
         <div class="meter"><label><span>SD Total</span><span id="about-sd-total">--</span></label></div>

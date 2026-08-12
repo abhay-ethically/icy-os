@@ -250,29 +250,51 @@
 
     /* Active window glow */
     .window.active { box-shadow: 0 0 0 1px var(--accent, #36d13c), 0 12px 40px rgba(54,209,60,0.18); }
-    .window { touch-action: none; }
+    .window { touch-action: pan-y pan-x; }
+    .titlebar { touch-action: none; }
     .titlebar, .win-btns button, .kb-key, .menu-item, .task-icon, button.std { touch-action: manipulation; }
     html, body { overscroll-behavior: none; }
+    .win-content { -webkit-overflow-scrolling: touch; }
 
     /* Mobile responsiveness */
     @media (max-width: 768px) {
       body { font-size: 15px; }
-      #taskbar { height: 52px; padding: 0 8px; }
-      #desktop { bottom: 52px; }
+      #taskbar { height: 56px; padding: 0 8px; padding-bottom: env(safe-area-inset-bottom); }
+      #desktop { bottom: 56px; }
       #start-btn { font-size: 15px; padding: 10px 14px; }
       #tray span { display: none; }
       #tray #clock { display: inline; font-size: 15px; }
-      #start-menu { left: 0; right: 0; top: auto; bottom: 52px; width: 100%; max-height: 70vh; border-radius: 14px 14px 0 0; grid-template-columns: repeat(2, 1fr); padding: 12px; }
-      .menu-item { padding: 14px 8px; font-size: 13px; border-radius: 8px; text-align: center; }
-      .window { width: calc(100% - 12px) !important; height: calc(100% - 68px) !important; top: 6px !important; left: 6px !important; border-radius: 10px; resize: none; }
+      #start-menu {
+        position: fixed; inset: 0; bottom: 56px;
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        padding: 14px; width: 100%; max-height: 100%; border-radius: 0;
+        overflow-y: auto; -webkit-overflow-scrolling: touch;
+      }
+      #menu-search { width: 100%; grid-column: 1 / -1; font-size: 16px; min-height: 44px; }
+      .menu-sep { grid-column: 1 / -1; font-size: 13px; }
+      .menu-item {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        min-height: 90px; border-radius: 12px; padding: 10px; font-size: 13px;
+      }
+      .menu-icon { font-size: 28px; margin: 0 0 6px; width: auto; }
+      .window { position: fixed; inset: 0; width: 100% !important; height: 100% !important; border-radius: 0; resize: none; }
       .window.minimized { display: none; }
-      .win-btns button { width: 28px; height: 28px; font-size: 14px; }
-      .titlebar { height: 42px; padding: 0 12px; }
+      .window.mobile .min, .window.mobile .max { display: none; }
+      .win-btns button { width: 44px; height: 44px; font-size: 20px; }
+      .titlebar { height: 52px; padding: 0 12px; }
+      .win-title { font-size: 16px; }
+      .win-content { padding: 12px; font-size: 14px; }
       .login-box { width: 92%; max-width: 340px; padding: 24px; }
       .login-box input { font-size: 16px; }
+      input, select, textarea, button.std { font-size: 16px; min-height: 44px; }
+      .field input, .field select { width: 100%; }
+      .table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      table { min-width: 100%; }
+      th, td { white-space: nowrap; padding: 10px 6px; }
       #virtual-keyboard { padding-bottom: env(safe-area-inset-bottom); }
       .kb-row { gap: 4px; }
       .kb-key { padding: 11px 8px; font-size: 14px; min-width: 28px; }
+      .toast { right: 8px; top: 8px; left: 8px; max-width: none; }
     }
 
     /* App icons in start menu */
