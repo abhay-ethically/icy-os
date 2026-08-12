@@ -2,6 +2,7 @@
   window.icyModules = window.icyModules || {};
   window.icyModules.ping = {
     name: 'Ping',
+    icon: '🛜',
     html: `
       <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
         <input id="ping-host" value="8.8.8.8" style="flex:1;background:#0f1115;border:1px solid #2b3039;color:#e0e6ed;padding:6px;border-radius:5px">
