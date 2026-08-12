@@ -14,9 +14,11 @@ same USB/serial cable, so you do not need to connect to the Icy-OS Wi-Fi AP.
 
 import argparse
 import glob
+import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 
 import serial
@@ -111,6 +113,10 @@ def main():
     parser.add_argument("--port", default=find_port(), help="USB/serial port of the ESP32")
     parser.add_argument("--no-flash", action="store_true", help="Skip firmware flashing")
     parser.add_argument("--data", default=os.path.join(PROJECT_DIR, "data"), help="OS asset folder")
+    parser.add_argument("--sta-ssid", default="", help="Pre-configure saved STA Wi-Fi network (uploaded in settings.json)")
+    parser.add_argument("--sta-pass", default="", help="Saved STA Wi-Fi password")
+    parser.add_argument("--ntp", default="pool.ntp.org", help="NTP server for pre-configured settings")
+    parser.add_argument("--no-reboot", dest="reboot", action="store_false", default=True, help="Do not reboot the ESP32 after upload")
     args = parser.parse_args()
 
     if not args.port:
@@ -129,6 +135,26 @@ def main():
     if not files:
         print("No files found in data/.")
         sys.exit(1)
+
+    tmp_settings = None
+    if args.sta_ssid or args.sta_pass:
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
+        settings = {
+            "ssid": "Icy-OS",
+            "password": "Password123",
+            "adminPass": "admin",
+            "buzzerGPIO": -1,
+            "channel": 1,
+            "staSSID": args.sta_ssid,
+            "staPassword": args.sta_pass,
+            "ntpServer": args.ntp,
+            "ntpOffset": 0
+        }
+        tmp.write(json.dumps(settings).encode())
+        tmp.flush()
+        tmp.close()
+        tmp_settings = tmp.name
+        files.insert(0, (tmp_settings, "settings.json"))
 
     print(f"[2/3] Opening {args.port}...")
     with serial.Serial(args.port, 115200, timeout=0.5) as ser:
@@ -156,8 +182,19 @@ def main():
             sys.exit(1)
 
         print("\nAll done.")
-        print("Connect to the 'Icy-OS' Wi-Fi and open http://192.168.4.1/")
-        print("If the old UI still appears, press Ctrl+Shift+R to clear the cache.")
+
+    if tmp_settings and os.path.exists(tmp_settings):
+        os.unlink(tmp_settings)
+
+    if args.reboot:
+        print("Rebooting the ESP32...")
+        with serial.Serial(args.port, 115200, timeout=0.5) as ser:
+            ser.write(b"__ICY_REBOOT__\n")
+            ser.flush()
+            time.sleep(4)
+
+    print("Connect to the 'Icy-OS' Wi-Fi and open http://192.168.4.1/")
+    print("If the old UI still appears, press Ctrl+Shift+R to clear the cache.")
 
 
 if __name__ == "__main__":

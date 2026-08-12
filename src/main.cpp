@@ -1873,6 +1873,10 @@ void handleSerialUpload() {
         Serial.println(sdReady ? "SD ready" : "SD not ready");
       } else if (line.startsWith("__ICY_INITSD__")) {
         initSD();
+      } else if (line == "__ICY_REBOOT__") {
+        Serial.println("REBOOT");
+        delay(100);
+        ESP.restart();
       } else if (line.length() > 0) {
         // ignore unknown serial lines (could be noise)
       }
