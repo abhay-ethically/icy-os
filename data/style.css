@@ -47,10 +47,10 @@
     .login-box button:hover { background: #4af05c; }
     #login-msg { color: #ff6b6b; font-size: 13px; margin-top: 10px; text-align: center; }
 
-    /* Taskbar */
+    /* Taskbar / Dock */
     #taskbar {
       position: fixed; bottom: 0; left: 0; right: 0;
-      height: 44px;
+      height: 56px;
       background: rgba(18,21,27,0.92);
       border-top: 1px solid #2b3039;
       display: flex; align-items: center;
@@ -58,25 +58,40 @@
       backdrop-filter: blur(8px);
     }
     #start-btn {
-      padding: 0 18px; height: 44px;
+      width: 56px; height: 56px;
       background: var(--accent, #36d13c); color: #000;
-      border: none; font-weight: bold; font-size: 14px;
-      cursor: pointer;
+      border: none; font-weight: bold; font-size: 22px;
+      cursor: pointer; line-height: 1;
     }
     #start-btn:hover { background: #4af05c; }
-    #task-icons { display: flex; flex: 1; padding-left: 10px; }
-    .task-icon {
-      background: #1e232b;
-      border: 1px solid #2b3039;
-      border-radius: 6px;
-      padding: 6px 12px;
-      margin-right: 6px;
-      font-size: 12px;
-      cursor: pointer;
-      display: flex; align-items: center;
+    #dock {
+      display: flex; flex: 1; gap: 4px;
+      padding: 0 8px; overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
     }
-    .task-icon:hover, .task-icon.active { background: #2b3039; }
-    #tray { display: flex; align-items: center; padding-right: 12px; gap: 14px; font-size: 13px; }
+    #dock::-webkit-scrollbar { display: none; }
+    .dock-icon {
+      min-width: 48px; max-width: 70px;
+      height: 48px;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      padding: 4px 6px;
+      font-size: 10px;
+      color: #e0e6ed;
+      cursor: pointer;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      transition: background 0.15s, border 0.15s, transform 0.08s;
+      user-select: none;
+    }
+    .dock-icon .emoji { font-size: 22px; margin-bottom: 2px; }
+    .dock-icon:hover { background: rgba(255,255,255,0.06); }
+    .dock-icon.active { background: rgba(255,255,255,0.12); border-color: var(--accent, #36d13c); box-shadow: 0 0 10px rgba(54,209,60,0.25); }
+    .dock-icon:active { transform: scale(0.94); }
+    #tray { display: flex; align-items: center; padding-right: 12px; gap: 12px; font-size: 12px; }
     #tray .bad { color: #ff6b6b; }
     #tray .good { color: #51cf66; }
 
@@ -264,6 +279,7 @@
       #start-btn { font-size: 15px; padding: 10px 14px; }
       #tray span { display: none; }
       #tray #clock { display: inline; font-size: 15px; }
+      #tray #sta-icon { display: inline; font-size: 18px; }
       #start-menu {
         position: fixed; inset: 0; bottom: 56px;
         display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;

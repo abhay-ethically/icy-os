@@ -184,6 +184,7 @@
       task: { title: 'Task Manager', icon: icons.task, w: 400, h: 320, html: taskHTML() }
     };
     const openWins = {};
+    renderDock();
 
     async function loadModules() {
       try {
@@ -217,6 +218,7 @@
           container.appendChild(el);
         }
       } catch (e) { console.error('modules load error', e); }
+      renderDock();
     }
 
     function openWindow(app) {
@@ -253,7 +255,6 @@
       `;
       document.getElementById('desktop').appendChild(div);
       openWins[app] = div;
-      addTaskIcon(app, a.title, a.icon);
       initWindowBehavior(div, app);
       if (typeof a.init === 'function') a.init(div, {sendCmd, adminToken, ws});
       focusWindow(app);
@@ -269,8 +270,7 @@
         div.remove();
         delete openWins[app];
         if (app === 'wifi') ws.send(JSON.stringify({type:'scanner', action:'unsubscribe'}));
-        const ic = document.getElementById('task-' + app);
-        if (ic) ic.remove();
+        updateDockActive(app, false);
       }, 150);
     }
 
@@ -283,31 +283,37 @@
       div.style.zIndex = ++zTop;
       document.querySelectorAll('.window').forEach(w => w.classList.remove('active'));
       div.classList.add('active');
-      document.querySelectorAll('.task-icon').forEach(i => i.classList.remove('active'));
-      const ic = document.getElementById('task-' + app);
-      if (ic) ic.classList.add('active');
+      document.querySelectorAll('.dock-icon').forEach(i => i.classList.remove('active'));
+      updateDockActive(app, true);
     }
 
-    function addTaskIcon(app, title, icon) {
-      const bar = document.getElementById('task-icons');
-      const ic = document.createElement('div');
-      ic.className = 'task-icon active';
-      ic.id = 'task-' + app;
-      ic.innerHTML = (icon ? '<span class="task-icon-emoji">' + icon + '</span>' : '') + '<span class="task-icon-text">' + escapeHtml(title) + '</span>';
-      ic.addEventListener('click', () => {
-        const div = openWins[app];
-        if (div && !div.classList.contains('minimized')) {
-          if (div.style.zIndex == zTop) {
-            div.classList.add('minimized');
-            ic.classList.remove('active');
-          } else {
-            focusWindow(app);
-          }
-        } else {
-          focusWindow(app);
-        }
+    function renderDock() {
+      const dock = document.getElementById('dock');
+      if (!dock) return;
+      dock.innerHTML = '';
+      const order = ['terminal','files','wifi','network','settings','attacks','ping','curlview','system','about','calc','note','clock','task','guide','portal'];
+      order.forEach(app => {
+        const a = apps[app];
+        if (!a) return;
+        const ic = document.createElement('div');
+        ic.className = 'dock-icon';
+        ic.id = 'dock-' + app;
+        const short = a.title.split(' ')[0];
+        ic.innerHTML = (a.icon ? '<span class="emoji">' + a.icon + '</span>' : '') + '<span>' + escapeHtml(short) + '</span>';
+        ic.title = a.title;
+        ic.addEventListener('click', () => {
+          if (openWins[app]) focusWindow(app);
+          else openWindow(app);
+        });
+        dock.appendChild(ic);
       });
-      bar.appendChild(ic);
+    }
+
+    function updateDockActive(app, active) {
+      const ic = document.getElementById('dock-' + app);
+      if (!ic) return;
+      if (active) ic.classList.add('active');
+      else ic.classList.remove('active');
     }
 
     function initWindowBehavior(div, app) {
